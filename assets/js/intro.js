@@ -4,7 +4,7 @@
 
   const wordElement = document.querySelector("#intro-word");
   const word = "pollo.city";
-  const glyphs = "#%&@$*+=?!<>[]{}0123456789";
+  const glyphs = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&@$*+=?!<>[]{}";
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const forceIntro = new URLSearchParams(window.location.search).has("intro");
   let seen = false;
@@ -21,14 +21,15 @@
   }
 
   const start = performance.now();
-  const typeEnd = 900;
-  const lockEnd = 1600;
-  const exitAt = 1900;
+  const revealStep = 90;
+  const settleDelay = 240;
+  const exitAt = 1500;
   let frameId = 0;
   let finished = false;
 
-  function randomGlyph() {
-    return glyphs[Math.floor(Math.random() * glyphs.length)];
+  function randomGlyph(index, elapsed) {
+    const seed = index * 31 + Math.floor(elapsed / 55) * 17;
+    return glyphs[seed % glyphs.length];
   }
 
   function finish() {
@@ -54,20 +55,12 @@
   function render(now) {
     if (finished) return;
     const elapsed = now - start;
+    const revealed = Math.min(word.length, Math.floor(elapsed / revealStep));
     let output = "";
 
-    if (elapsed < typeEnd) {
-      const progress = Math.min(1, elapsed / typeEnd);
-      const visible = Math.floor(progress * (word.length + 1));
-      output = Array.from(word).slice(0, visible).map(() => randomGlyph()).join("");
-    } else if (elapsed < lockEnd) {
-      const progress = Math.min(1, (elapsed - typeEnd) / (lockEnd - typeEnd));
-      const locked = Math.floor(progress * (word.length + 1));
-      output = Array.from(word)
-        .map((character, index) => (index < locked ? character : randomGlyph()))
-        .join("");
-    } else {
-      output = word;
+    for (let index = 0; index < revealed; index += 1) {
+      const settled = elapsed >= index * revealStep + settleDelay;
+      output += settled ? word[index] : randomGlyph(index, elapsed);
     }
 
     wordElement.textContent = output;

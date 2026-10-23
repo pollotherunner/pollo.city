@@ -53,6 +53,7 @@
   --radius-sm: 8px;
   --radius: 12px;
   --radius-lg: 16px;
+  --graph-top: 76px;
   --ease: cubic-bezier(0.22, 0.72, 0.2, 1);
 }
 
@@ -193,18 +194,19 @@ body.intro-active {
 }
 
 .intro.is-leaving .intro-inner {
-  transform: scale(0.78);
+  transform: scale(0.84);
 }
 
 .intro-ghost,
 .intro-word {
   grid-area: 1 / 1;
-  justify-self: stretch;
+  justify-self: center;
   font-family: var(--font-ocr);
-  font-size: clamp(3rem, 14vw, 12rem);
+  font-size: clamp(2.4rem, 6vw, 5.5rem);
   font-weight: 400;
   line-height: 0.8;
   letter-spacing: -0.045em;
+  text-align: center;
   white-space: nowrap;
 }
 
@@ -214,7 +216,6 @@ body.intro-active {
 
 .intro-word {
   color: var(--ink);
-  text-align: left;
 }
 
 .reading-progress {
@@ -726,7 +727,7 @@ body:has(.search-dialog[open]) {
 }
 
 .graph-view {
-  padding-top: 16px;
+  background: var(--paper);
   animation: graph-enter 240ms var(--ease);
 }
 
@@ -739,15 +740,46 @@ body:has(.search-dialog[open]) {
   }
 }
 
+body.graph-mode {
+  overflow: hidden;
+}
+
+body.graph-mode .site-footer,
+body.graph-mode .section-bar,
+body.graph-mode #default-view {
+  display: none;
+}
+
+body.graph-mode .posts-section {
+  padding: 0;
+}
+
+body.graph-mode .posts-section > .shell {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+body.graph-mode .posts-toolbar {
+  position: fixed;
+  top: calc(var(--graph-top) + 16px);
+  right: var(--gutter);
+  z-index: 40;
+  padding: 0;
+}
+
+body.graph-mode .graph-view {
+  position: fixed;
+  inset: var(--graph-top) 0 0 0;
+  z-index: 20;
+  background: var(--paper);
+}
+
 .graph-frame {
   position: relative;
-  height: clamp(380px, 60vh, 560px);
+  height: 100%;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background-color: #fdfdfd;
-  background-image: radial-gradient(circle, #e4e4e4 0.8px, transparent 0.9px);
-  background-size: 20px 20px;
+  background: var(--paper);
 }
 
 .graph-frame canvas {
@@ -2235,8 +2267,8 @@ textarea.input {
     font-size: 12.5px;
   }
 
-  .graph-frame {
-    height: clamp(340px, 56vh, 460px);
+  body.graph-mode .posts-toolbar {
+    top: calc(var(--graph-top) + 12px);
   }
 
   .graph-legend {
@@ -2244,11 +2276,6 @@ textarea.input {
     left: 10px;
     gap: 10px;
     font-size: 11.5px;
-  }
-
-  .intro-ghost,
-  .intro-word {
-    font-size: clamp(2.4rem, 14vw, 5rem);
   }
 
   .section-bar {

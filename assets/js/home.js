@@ -6,6 +6,7 @@
   const graphView = document.querySelector("#graph-view");
   const graphCanvas = document.querySelector("#posts-graph");
   const viewButtons = [...document.querySelectorAll("[data-view]")];
+  const siteHeader = document.querySelector(".site-header");
   const posts = window.Pollo.getPosts();
   const tags = window.Pollo.getTags();
   const params = new URLSearchParams(window.location.search);
@@ -20,7 +21,14 @@
     count.textContent = `${total} ${total === 1 ? "artigo" : "artigos"}`;
   }
 
+  function updateGraphTop() {
+    if (!siteHeader) return;
+    document.documentElement.style.setProperty("--graph-top", `${siteHeader.offsetHeight}px`);
+  }
+
   updateCount(filteredPosts.length);
+  updateGraphTop();
+  window.addEventListener("resize", updateGraphTop);
 
   tagFilter.hidden = !tags.length;
   tagFilter.innerHTML = [
@@ -76,15 +84,21 @@
       button.setAttribute("aria-pressed", String(active));
     });
 
-    defaultView.hidden = showGraph;
-    graphView.hidden = !showGraph;
-    updateCount(showGraph ? posts.length : filteredPosts.length);
-
     if (showGraph) {
+      window.scrollTo({ top: 0, behavior: "auto" });
+      updateGraphTop();
+      document.body.classList.add("graph-mode");
+      defaultView.hidden = true;
+      graphView.hidden = false;
+      updateCount(posts.length);
       if (!graph) graph = window.PolloGraph.create(graphCanvas, posts);
       graph.start();
-    } else if (graph) {
-      graph.stop();
+    } else {
+      if (graph) graph.stop();
+      document.body.classList.remove("graph-mode");
+      graphView.hidden = true;
+      defaultView.hidden = false;
+      updateCount(filteredPosts.length);
     }
   }
 
