@@ -68,7 +68,7 @@
     const posts = window.Pollo ? window.Pollo.getPosts() : [];
     const matches = posts.filter((post) => {
       if (!term) return true;
-      return normalize(`${post.title} ${post.category} ${post.excerpt} ${post.body}`).includes(term);
+      return normalize(`${post.title} ${post.tags.join(" ")} ${post.excerpt} ${post.body}`).includes(term);
     });
 
     if (!matches.length) {
@@ -79,7 +79,7 @@
     searchResults.innerHTML = matches.map((post) => `<a class="search-result" href="post.html?slug=${encodeURIComponent(post.slug)}">
       <span class="search-result-copy">
         <span class="search-result-title">${window.Pollo.escapeHTML(post.title)}</span>
-        <span class="search-result-meta"><span>${window.Pollo.escapeHTML(post.category)}</span><time datetime="${window.Pollo.escapeHTML(post.date)}">${window.Pollo.formatDate(post.date)}</time></span>
+        <span class="search-result-meta">${post.tags.slice(0, 3).map((tag) => `<span>${window.Pollo.escapeHTML(tag)}</span>`).join("")}<time datetime="${window.Pollo.escapeHTML(post.date)}">${window.Pollo.formatDate(post.date)}</time></span>
       </span>
       <i data-lucide="arrow-up-right" aria-hidden="true"></i>
     </a>`).join("");

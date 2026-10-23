@@ -12,7 +12,7 @@
       slug: "o-elogio-das-coisas-que-nao-pedem-atencao",
       title: "O elogio das coisas que não pedem atenção",
       excerpt: "Sobre intenção, silêncio e a beleza discreta de uma interface que simplesmente funciona.",
-      category: "Design",
+      tags: ["Design", "Interfaces", "Atenção"],
       date: "2026-10-18",
       thumbnail: "assets/img/thumb-interface.svg",
       body: `Há uma categoria de interface que quase nunca recebe crédito: aquela que não tenta ser assunto. Você abre, resolve o que precisava e segue com o dia. Nenhum tutorial, nenhuma celebração, nenhuma animação pedindo aplausos.
@@ -50,7 +50,7 @@ No fim, a melhor homenagem a uma interface discreta não é um elogio. É contin
       slug: "um-site-pequeno-tambem-e-uma-escolha",
       title: "Um site pequeno também é uma escolha",
       excerpt: "Na internet, fazer menos pode ser um ato de cuidado. Uma defesa das páginas leves e dos projetos que cabem na palma da mão.",
-      category: "Ensaios",
+      tags: ["Web", "Ensaios", "Simplicidade"],
       date: "2026-10-11",
       thumbnail: "assets/img/thumb-site.svg",
       body: `A internet começou como uma coleção de lugares. Depois virou uma avenida com todas as lojas abertas ao mesmo tempo, cada uma tentando puxar a sua manga. Hoje, entrar em um site pode parecer atravessar um aeroporto para chegar a uma padaria.
@@ -86,7 +86,7 @@ Ainda assim, o gesto importa. Toda página independente é uma pequena prova de 
       slug: "html-css-e-o-suficiente",
       title: "HTML, CSS e o suficiente",
       excerpt: "Um lembrete para quando a stack cresce mais do que a ideia: o navegador já sabe fazer muita coisa.",
-      category: "Código",
+      tags: ["Código", "HTML", "CSS"],
       date: "2026-09-30",
       thumbnail: "assets/img/thumb-code.svg",
       body: `Toda semana aparece uma ferramenta nova. E toda semana alguém começa um blog com quatro dependências, um gerador de páginas e uma esteira de publicação que ocupa uma tarde inteira. Nada contra ferramentas. Mas às vezes a ideia é menor que a infraestrutura.
@@ -125,7 +125,7 @@ Escrever HTML é uma forma de colocar as ideias em ordem. O CSS dá ritmo. O Jav
       slug: "a-mesa-onde-as-ideias-pousam",
       title: "A mesa onde as ideias pousam",
       excerpt: "Uma volta pela minha mesa, pelos objetos que ficam e pelas coisas que nunca termino.",
-      category: "Cadernos",
+      tags: ["Cadernos", "Processo", "Rotina"],
       date: "2026-09-21",
       thumbnail: "assets/img/thumb-desk.svg",
       body: `Minha mesa não é um editorial de revista. Tem um caderno aberto em uma página de outubro, um copo com marca de café e três canetas das quais só uma funciona. Também tem uma pilha de papéis que comecei a chamar de arquivo, para não precisar organizá-los.
@@ -249,6 +249,44 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
     return Array.isArray(posts) ? posts : [];
   }
 
+  function normalizeTag(value) {
+    return String(value || "")
+      .replace(/^#+/, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 24);
+  }
+
+  function tagSlug(value) {
+    return normalizeTag(value)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  function normalizeTags(values) {
+    const source = Array.isArray(values) ? values : values ? [values] : [];
+    const seen = new Set();
+    const tags = [];
+
+    source.forEach((value) => {
+      const tag = normalizeTag(value);
+      const slug = tagSlug(tag);
+      if (!tag || !slug || seen.has(slug) || tags.length >= 8) return;
+      seen.add(slug);
+      tags.push(tag);
+    });
+
+    return tags;
+  }
+
+  function postTags(post) {
+    if (Array.isArray(post.tags)) return normalizeTags(post.tags);
+    return normalizeTags(post.category ? [post.category] : []);
+  }
+
   function getPosts() {
     const storedOverrides = readJSON(OVERRIDES_KEY, {});
     const storedHidden = readJSON(HIDDEN_POSTS_KEY, []);
@@ -262,13 +300,31 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
         slug: post.slug,
         date: post.date,
       }));
-    const posts = [...getCustomPosts(), ...seedPosts];
+    const posts = [...getCustomPosts(), ...seedPosts].map((post) => ({
+      ...post,
+      tags: postTags(post),
+    }));
     return posts.sort((a, b) => {
       const dateA = parseDate(a.date).getTime();
       const dateB = parseDate(b.date).getTime();
       if (dateA !== dateB) return dateB - dateA;
       return (b.createdAt || 0) - (a.createdAt || 0);
     });
+  }
+
+  function getTags() {
+    const tags = new Map();
+
+    getPosts().forEach((post) => {
+      post.tags.forEach((tag) => {
+        const slug = tagSlug(tag);
+        if (!slug) return;
+        if (!tags.has(slug)) tags.set(slug, { name: tag, slug, count: 0 });
+        tags.get(slug).count += 1;
+      });
+    });
+
+    return [...tags.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "pt-BR"));
   }
 
   function getPost(slug) {
@@ -324,7 +380,7 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
       slug,
       title: String(data.title || "").trim(),
       excerpt: String(data.excerpt || "").trim() || plainExcerpt(data.body, 150),
-      category: String(data.category || "Cadernos").trim(),
+      tags: normalizeTags(data.tags),
       body: String(data.body || ""),
       thumbnail: thumbnailUrl(data.thumbnail),
       date: isoToday(),
@@ -340,7 +396,7 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
     const fields = {
       title: String(data.title || "").trim(),
       excerpt: String(data.excerpt || "").trim() || plainExcerpt(data.body, 150),
-      category: String(data.category || "Cadernos").trim(),
+      tags: normalizeTags(data.tags),
       body: String(data.body || ""),
       thumbnail: thumbnailUrl(data.thumbnail),
       updatedAt: Date.now(),
@@ -381,7 +437,12 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
 
   function getDrafts() {
     const drafts = readJSON(DRAFTS_KEY, []);
-    return (Array.isArray(drafts) ? drafts : []).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    return (Array.isArray(drafts) ? drafts : [])
+      .map((draft) => ({
+        ...draft,
+        tags: postTags(draft),
+      }))
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   }
 
   function getDraft(draftId) {
@@ -399,7 +460,7 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
       id,
       postSlug: data.postSlug || null,
       title: String(data.title || ""),
-      category: String(data.category || "Cadernos"),
+      tags: normalizeTags(data.tags),
       thumbnail: String(data.thumbnail || ""),
       body: String(data.body || ""),
       updatedAt: Date.now(),
@@ -490,6 +551,9 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
     formatCommentDate,
     getPosts,
     getPost,
+    getTags,
+    tagSlug,
+    normalizeTags,
     addPost,
     updatePost,
     deletePost,

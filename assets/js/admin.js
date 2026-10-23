@@ -1,11 +1,11 @@
 (function () {
   const ADMIN_PASSWORD = "pollo2026";
   const SESSION_KEY = "pollo.admin.session.v1";
-  const DEFAULT_CATEGORY = "Design";
   const state = {
     draftId: null,
     postSlug: null,
     thumbnail: "",
+    tags: [],
     editorOpen: false,
     dirty: false,
     autosaveTimer: null,
@@ -37,7 +37,9 @@
   const publishButton = document.querySelector("#publish-button");
   const saveState = document.querySelector("#editor-save-state");
   const titleField = document.querySelector("#editor-title");
-  const categoryField = document.querySelector("#editor-category");
+  const tagChips = document.querySelector("#editor-tag-chips");
+  const tagInput = document.querySelector("#tag-input");
+  const tagSuggestions = document.querySelector("#tag-suggestions");
   const coverPreview = document.querySelector("#cover-preview");
   const coverButton = document.querySelector("#cover-button");
   const coverButtonLabel = document.querySelector("#cover-button-label");
@@ -85,6 +87,44 @@
 
   function updateEmptyState() {
     editorContent.classList.toggle("is-empty", !editorContent.textContent.trim());
+  }
+
+  function renderTagEditor() {
+    tagChips.innerHTML = state.tags.map((tag) => `<span class="tag-chip">${escape(tag)}<button type="button" data-remove-tag="${escape(tag)}" aria-label="Remover ${escape(tag)}"><i data-lucide="x"></i></button></span>`).join("");
+
+    const suggestions = window.Pollo.getTags().filter((tag) => !state.tags.some((selected) => window.Pollo.tagSlug(selected) === tag.slug));
+    tagSuggestions.hidden = !suggestions.length || state.tags.length >= 8;
+    tagSuggestions.innerHTML = !tagSuggestions.hidden
+      ? `<span class="tag-suggestions-label">Tags usadas</span>${suggestions.map((tag) => `<button class="tag-suggestion" type="button" data-suggest-tag="${escape(tag.name)}">${escape(tag.name)}</button>`).join("")}`
+      : "";
+
+    tagInput.disabled = state.tags.length >= 8;
+    tagInput.placeholder = state.tags.length >= 8 ? "Máximo de 8 tags" : "Adicionar tag";
+    window.PolloUI.refreshIcons();
+  }
+
+  function addTagsFromInput() {
+    const values = tagInput.value.split(",").map((value) => value.trim()).filter(Boolean);
+    if (!values.length) return;
+
+    const previous = state.tags.length;
+    state.tags = window.Pollo.normalizeTags([...state.tags, ...values]);
+    tagInput.value = "";
+    renderTagEditor();
+    if (state.tags.length !== previous) markChanged();
+  }
+
+  function addTag(value) {
+    const previous = state.tags.length;
+    state.tags = window.Pollo.normalizeTags([...state.tags, value]);
+    renderTagEditor();
+    if (state.tags.length !== previous) markChanged();
+  }
+
+  function removeTag(value) {
+    state.tags = state.tags.filter((tag) => window.Pollo.tagSlug(tag) !== window.Pollo.tagSlug(value));
+    renderTagEditor();
+    markChanged();
   }
 
   function inlineMarkdown(node) {
@@ -387,9 +427,10 @@
   }
 
   function collectEditorData() {
+    const pendingTags = tagInput.value.split(",").map((value) => value.trim()).filter(Boolean);
     return {
       title: titleField.value.trim(),
-      category: categoryField.value,
+      tags: window.Pollo.normalizeTags([...state.tags, ...pendingTags]),
       thumbnail: state.thumbnail,
       body: editorMarkdown(),
     };
@@ -455,7 +496,7 @@
           <img class="admin-item-thumb" src="${escape(post.thumbnail || window.Pollo.defaultThumbnail)}" alt="" loading="lazy">
           <div class="admin-item-copy">
             <h3 class="admin-item-title">${escape(post.title)}</h3>
-            <p class="admin-item-meta"><span>${escape(post.category)}</span><time datetime="${escape(post.date)}">${window.Pollo.formatDate(post.date)}</time></p>
+            <p class="admin-item-meta">${post.tags.map((tag) => `<span>${escape(tag)}</span>`).join("")}<time datetime="${escape(post.date)}">${window.Pollo.formatDate(post.date)}</time></p>
           </div>
           <div class="admin-item-actions">
             <a href="post.html?slug=${encodeURIComponent(post.slug)}">Ver</a>
@@ -470,7 +511,7 @@
           <img class="admin-item-thumb" src="${escape(draft.thumbnail || window.Pollo.defaultThumbnail)}" alt="" loading="lazy">
           <div class="admin-item-copy">
             <h3 class="admin-item-title">${escape(draft.title || "Sem título")}</h3>
-            <p class="admin-item-meta"><span>Rascunho</span><span>${escape(window.Pollo.formatCommentDate(draft.updatedAt))}</span></p>
+            <p class="admin-item-meta">${draft.tags.map((tag) => `<span>${escape(tag)}</span>`).join("")}<span>Rascunho</span><span>${escape(window.Pollo.formatCommentDate(draft.updatedAt))}</span></p>
           </div>
           <div class="admin-item-actions">
             <button type="button" data-action="continue" data-draft="${escape(draft.id)}">Continuar</button>
@@ -506,9 +547,11 @@
 
     state.draftId = draft ? draft.id : null;
     state.postSlug = draft ? draft.postSlug : post ? post.slug : null;
+    state.tags = source ? window.Pollo.normalizeTags(source.tags) : [];
 
     titleField.value = source ? source.title || "" : "";
-    categoryField.value = source ? source.category || DEFAULT_CATEGORY : DEFAULT_CATEGORY;
+    tagInput.value = "";
+    renderTagEditor();
     setCover(source ? source.thumbnail || "" : "");
     const markdown = source ? source.body || "" : "";
     editorContent.innerHTML = markdown ? window.PolloMarkdown.render(markdown) : "<p><br></p>";
@@ -689,7 +732,39 @@
   publishButton.addEventListener("click", publishArticle);
 
   titleField.addEventListener("input", markChanged);
-  categoryField.addEventListener("change", markChanged);
+
+  tagInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === ",") {
+      event.preventDefault();
+      addTagsFromInput();
+    } else if (event.key === "Backspace" && !tagInput.value && state.tags.length) {
+      removeTag(state.tags[state.tags.length - 1]);
+    } else if (event.key === "Escape") {
+      tagInput.value = "";
+    }
+  });
+
+  tagInput.addEventListener("blur", addTagsFromInput);
+
+  tagChips.addEventListener("mousedown", (event) => {
+    if (event.target.closest("[data-remove-tag]")) event.preventDefault();
+  });
+
+  tagChips.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-remove-tag]");
+    if (button) removeTag(button.dataset.removeTag);
+  });
+
+  tagSuggestions.addEventListener("mousedown", (event) => {
+    if (event.target.closest("[data-suggest-tag]")) event.preventDefault();
+  });
+
+  tagSuggestions.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-suggest-tag]");
+    if (!button) return;
+    addTag(button.dataset.suggestTag);
+    tagInput.focus();
+  });
 
   editorContent.addEventListener("input", (event) => {
     if (event.isComposing) return;

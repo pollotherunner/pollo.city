@@ -10,17 +10,46 @@
   <link rel="stylesheet" href="assets/css/main.css">
 </head>
 <body id="top" data-page="home">
+  <div class="intro" id="intro" hidden aria-hidden="true">
+    <div class="intro-inner">
+      <span class="intro-ghost">pollo.city</span>
+      <span class="intro-word" id="intro-word"></span>
+    </div>
+  </div>
+
   <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
   <div data-site-header></div>
 
   <main id="conteudo">
     <section class="posts-section" id="artigos" aria-labelledby="artigos-title">
       <div class="shell">
+        <div class="posts-toolbar">
+          <div class="view-toggle" role="group" aria-label="Visualização dos artigos">
+            <button class="view-toggle-button is-active" type="button" data-view="default" aria-pressed="true">Default</button>
+            <button class="view-toggle-button" type="button" data-view="graph" aria-pressed="false">Graph</button>
+          </div>
+        </div>
+
         <div class="section-bar">
           <h1 class="section-label" id="artigos-title">Artigos</h1>
           <p class="section-count"><span data-post-count>4 artigos</span></p>
         </div>
-        <div class="post-list" id="post-list"></div>
+
+        <div id="default-view">
+          <nav class="tag-filter" id="tag-filter" aria-label="Filtrar artigos por tag"></nav>
+          <div class="post-list" id="post-list"></div>
+        </div>
+
+        <div class="graph-view" id="graph-view" hidden>
+          <div class="graph-frame">
+            <canvas id="posts-graph" role="img" aria-label="Grafo de artigos e tags"></canvas>
+            <div class="graph-tooltip" id="graph-tooltip" hidden></div>
+            <div class="graph-legend" aria-hidden="true">
+              <span><i class="legend-dot legend-dot--post"></i>Artigos</span>
+              <span><i class="legend-dot legend-dot--tag"></i>Tags</span>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -30,6 +59,8 @@
   <script src="assets/vendor/lucide.min.js" defer></script>
   <script src="assets/js/data.js" defer></script>
   <script src="assets/js/common.js" defer></script>
+  <script src="assets/js/graph.js" defer></script>
+  <script src="assets/js/intro.js" defer></script>
   <script src="assets/js/home.js" defer></script>
 </body>
 </html>

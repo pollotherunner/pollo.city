@@ -96,15 +96,15 @@
             <input id="cover-input" type="file" accept="image/*" hidden>
           </div>
 
-          <select class="editor-category" id="editor-category" aria-label="Categoria">
-            <option value="Design">Design</option>
-            <option value="Ensaios">Ensaios</option>
-            <option value="Código">Código</option>
-            <option value="Cadernos">Cadernos</option>
-          </select>
-
           <label class="sr-only" for="editor-title">Título do artigo</label>
           <input class="editor-title-input" id="editor-title" type="text" maxlength="100" placeholder="Título do artigo">
+
+          <div class="editor-tags">
+            <div class="tag-chips" id="editor-tag-chips"></div>
+            <label class="sr-only" for="tag-input">Tags do artigo</label>
+            <input class="tag-input" id="tag-input" type="text" maxlength="24" autocomplete="off" placeholder="Adicionar tag">
+          </div>
+          <div class="tag-suggestions" id="tag-suggestions" aria-label="Tags usadas" hidden></div>
 
           <div class="editor-toolbar" role="toolbar" aria-label="Formatação do texto">
             <button class="editor-tool" type="button" data-format="bold" aria-label="Negrito" title="Negrito"><i data-lucide="bold"></i></button>

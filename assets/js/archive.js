@@ -27,7 +27,7 @@
         ${items.map((post) => `<li>
           <a class="archive-item" href="post.html?slug=${encodeURIComponent(post.slug)}">
             <span class="archive-item-title">${escape(post.title)}</span>
-            <span class="archive-item-meta"><span>${escape(post.category)}</span><time datetime="${escape(post.date)}">${window.Pollo.formatDate(post.date)}</time></span>
+            <span class="archive-item-meta">${post.tags.slice(0, 3).map((tag) => `<span>${escape(tag)}</span>`).join("")}<time datetime="${escape(post.date)}">${window.Pollo.formatDate(post.date)}</time></span>
           </a>
         </li>`).join("")}
       </ul>
