@@ -1,0 +1,122 @@
+package httpapi
+
+import (
+	"net/http"
+	"strings"
+
+	"pollo.city/internal/store"
+)
+
+type postRequest struct {
+	Title     string   `json:"title"`
+	Excerpt   string   `json:"excerpt"`
+	Tags      []string `json:"tags"`
+	Thumbnail string   `json:"thumbnail"`
+	Body      string   `json:"body"`
+}
+
+func (s *Server) listPosts(w http.ResponseWriter, r *http.Request) {
+	posts, err := s.store.ListPosts(r.Context())
+	if err != nil {
+		s.logError("list posts failed", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"posts": posts})
+}
+
+func (s *Server) getPost(w http.ResponseWriter, r *http.Request) {
+	post, err := s.store.GetPost(r.Context(), r.PathValue("slug"))
+	if err != nil {
+		s.writeStoreError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"post": post})
+}
+
+func (s *Server) listTags(w http.ResponseWriter, r *http.Request) {
+	tags, err := s.store.ListTags(r.Context())
+	if err != nil {
+		s.logError("list tags failed", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"tags": tags})
+}
+
+func (s *Server) createPost(w http.ResponseWriter, r *http.Request) {
+	var request postRequest
+	if !decodeJSON(w, r, &request, 2<<20) {
+		return
+	}
+	if !validatePost(w, request) {
+		return
+	}
+	post, err := s.store.CreatePost(r.Context(), store.PostInput{
+		Title:     strings.TrimSpace(request.Title),
+		Excerpt:   strings.TrimSpace(request.Excerpt),
+		Tags:      request.Tags,
+		Thumbnail: strings.TrimSpace(request.Thumbnail),
+		Body:      request.Body,
+	})
+	if err != nil {
+		s.writeStoreError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"post": post})
+}
+
+func (s *Server) updatePost(w http.ResponseWriter, r *http.Request) {
+	var request postRequest
+	if !decodeJSON(w, r, &request, 2<<20) {
+		return
+	}
+	if !validatePost(w, request) {
+		return
+	}
+	post, err := s.store.UpdatePost(r.Context(), r.PathValue("slug"), store.PostInput{
+		Title:     strings.TrimSpace(request.Title),
+		Excerpt:   strings.TrimSpace(request.Excerpt),
+		Tags:      request.Tags,
+		Thumbnail: strings.TrimSpace(request.Thumbnail),
+		Body:      request.Body,
+	})
+	if err != nil {
+		s.writeStoreError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"post": post})
+}
+
+func (s *Server) deletePost(w http.ResponseWriter, r *http.Request) {
+	if err := s.store.DeletePost(r.Context(), r.PathValue("slug")); err != nil {
+		s.writeStoreError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func validatePost(w http.ResponseWriter, request postRequest) bool {
+	title := strings.TrimSpace(request.Title)
+	if title == "" {
+		writeError(w, http.StatusBadRequest, "title is required")
+		return false
+	}
+	if len([]rune(title)) > 100 {
+		writeError(w, http.StatusBadRequest, "title is too long")
+		return false
+	}
+	if strings.TrimSpace(request.Body) == "" {
+		writeError(w, http.StatusBadRequest, "body is required")
+		return false
+	}
+	if len(request.Tags) > 8 {
+		writeError(w, http.StatusBadRequest, "too many tags")
+		return false
+	}
+	if len([]rune(request.Thumbnail)) > 2048 {
+		writeError(w, http.StatusBadRequest, "thumbnail is too long")
+		return false
+	}
+	return true
+}
