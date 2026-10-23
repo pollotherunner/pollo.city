@@ -2,7 +2,6 @@
   const page = document.body.dataset.page || "home";
   const headerHost = document.querySelector("[data-site-header]");
   const footerHost = document.querySelector("[data-site-footer]");
-  const isHome = page === "home";
   const blogCurrent = page === "home" || page === "post";
   const sobreCurrent = page === "sobre";
   const adminCurrent = page === "admin";
@@ -20,19 +19,12 @@
   </nav>`;
 
   if (headerHost) {
-    headerHost.innerHTML = isHome
-      ? `<header class="site-header site-header--home">
-          <div class="shell">
-            <div class="home-nav">${nav}</div>
-            <h1 class="home-brand"><a href="index.html">pollo.city</a></h1>
-          </div>
-        </header>`
-      : `<header class="site-header">
-          <div class="shell header-inner">
-            <a class="brand" href="index.html" aria-label="pollo.city, página inicial">pollo.city</a>
-            ${nav}
-          </div>
-        </header>`;
+    headerHost.innerHTML = `<header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="index.html" aria-label="pollo.city, página inicial">pollo.city</a>
+        ${nav}
+      </div>
+    </header>`;
   }
 
   if (footerHost) {
