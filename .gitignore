@@ -1,1 +1,8 @@
 .DS_Store
+.env
+data/
+bin/
+backend/pollo
+*.db
+*.db-shm
+*.db-wal
