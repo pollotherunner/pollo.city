@@ -44,6 +44,35 @@
     <span class="meta-icon"><i data-lucide="clock"></i>${minutes} min de leitura</span>`;
   body.innerHTML = window.PolloMarkdown.render(post.body);
 
+  body.querySelectorAll("a[href]").forEach((link) => {
+    if (/^https?:\/\//i.test(link.getAttribute("href"))) {
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+    }
+  });
+
+  body.querySelectorAll("img").forEach((image) => {
+    image.loading = "lazy";
+  });
+
+  body.querySelectorAll("table").forEach((table) => {
+    if (table.parentElement.classList.contains("table-scroll")) return;
+    const wrapper = document.createElement("div");
+    wrapper.className = "table-scroll";
+    table.parentNode.insertBefore(wrapper, table);
+    wrapper.appendChild(table);
+  });
+
+  if (window.hljs) {
+    body.querySelectorAll("pre code").forEach((code) => {
+      try {
+        window.hljs.highlightElement(code);
+      } catch (error) {
+        void error;
+      }
+    });
+  }
+
   let comments = window.Pollo.getComments(post.slug);
   const commentCount = document.querySelector("[data-comment-count]");
   const commentsList = document.querySelector("#comments-list");

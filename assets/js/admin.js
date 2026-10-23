@@ -7,6 +7,8 @@
     thumbnail: "",
     tags: [],
     editorOpen: false,
+    editorInstance: null,
+    syncingEditor: false,
     dirty: false,
     autosaveTimer: null,
   };
@@ -44,18 +46,10 @@
   const coverButton = document.querySelector("#cover-button");
   const coverButtonLabel = document.querySelector("#cover-button-label");
   const coverInput = document.querySelector("#cover-input");
-  const editorContent = document.querySelector("#editor-content");
-  const toolbar = document.querySelector(".editor-toolbar");
+  const markdownEditorHost = document.querySelector("#markdown-editor");
   const wordCount = document.querySelector("#editor-word-count");
   const readTime = document.querySelector("#editor-read-time");
   const escape = window.Pollo.escapeHTML;
-
-  try {
-    document.execCommand("defaultParagraphSeparator", false, "p");
-    document.execCommand("styleWithCSS", false, false);
-  } catch (error) {
-    void error;
-  }
 
   function sessionIsOpen() {
     try {
@@ -83,10 +77,6 @@
     state.thumbnail = value || "";
     coverPreview.src = state.thumbnail || window.Pollo.defaultThumbnail;
     coverButtonLabel.textContent = state.thumbnail ? "Trocar thumbnail" : "Adicionar thumbnail";
-  }
-
-  function updateEmptyState() {
-    editorContent.classList.toggle("is-empty", !editorContent.textContent.trim());
   }
 
   function renderTagEditor() {
@@ -127,109 +117,8 @@
     markChanged();
   }
 
-  function inlineMarkdown(node) {
-    let output = "";
-
-    node.childNodes.forEach((child) => {
-      if (child.nodeType === Node.TEXT_NODE) {
-        output += child.nodeValue.replace(/\u00a0/g, " ");
-        return;
-      }
-
-      if (child.nodeType !== Node.ELEMENT_NODE) return;
-
-      const tag = child.tagName;
-      const inner = inlineMarkdown(child);
-
-      if (tag === "STRONG" || tag === "B") output += `**${inner}**`;
-      else if (tag === "EM" || tag === "I") output += `*${inner}*`;
-      else if (tag === "CODE") output += `\`${child.textContent}\``;
-      else if (tag === "A") {
-        const href = child.getAttribute("href");
-        output += href ? `[${inner}](${href})` : inner;
-      } else if (tag === "IMG") {
-        const source = child.getAttribute("src");
-        if (source) output += `![${child.getAttribute("alt") || ""}](${source})`;
-      } else if (tag === "BR") {
-        output += "\n";
-      } else if (tag === "SPAN") {
-        const style = child.getAttribute("style") || "";
-        if (/font-weight\s*:\s*(bold|[6-9]00)/i.test(style)) output += `**${inner}**`;
-        else if (/font-style\s*:\s*italic/i.test(style)) output += `*${inner}*`;
-        else output += inner;
-      } else {
-        output += inner;
-      }
-    });
-
-    return output;
-  }
-
-  function listMarkdown(element) {
-    const ordered = element.tagName === "OL";
-    return [...element.children]
-      .filter((child) => child.tagName === "LI")
-      .map((item, index) => {
-        const content = inlineMarkdown(item).trim().replace(/\n+/g, " ");
-        if (!content) return "";
-        return `${ordered ? `${index + 1}.` : "-"} ${content}`;
-      })
-      .filter(Boolean)
-      .join("\n");
-  }
-
-  function blockMarkdown(element) {
-    const tag = element.tagName;
-
-    if (tag === "UL" || tag === "OL") return listMarkdown(element);
-
-    if (tag === "BLOCKQUOTE") {
-      const parts = [];
-      element.childNodes.forEach((node) => {
-        if (node.nodeType === Node.TEXT_NODE) {
-          const text = node.nodeValue.trim();
-          if (text) parts.push(text);
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          const content = blockMarkdown(node);
-          if (content) parts.push(content);
-        }
-      });
-      return parts.join("\n\n").split("\n").filter(Boolean).map((line) => `> ${line}`).join("\n");
-    }
-
-    if (tag === "PRE") {
-      const code = element.querySelector("code");
-      const content = (code ? code.textContent : element.textContent).replace(/\n$/, "");
-      return "```\n" + content + "\n```";
-    }
-
-    if (/^H[1-4]$/.test(tag)) {
-      const level = Number(tag.charAt(1));
-      return `${"#".repeat(level)} ${inlineMarkdown(element).trim()}`;
-    }
-
-    if (tag === "HR") return "---";
-
-    const blockChildren = [...element.children].filter((child) => /^(P|H[1-4]|UL|OL|BLOCKQUOTE|PRE|HR|DIV)$/.test(child.tagName));
-    if (tag === "DIV" && blockChildren.length) {
-      return blockChildren.map(blockMarkdown).filter(Boolean).join("\n\n");
-    }
-
-    return inlineMarkdown(element).trim();
-  }
-
   function editorMarkdown() {
-    const blocks = [];
-    editorContent.childNodes.forEach((node) => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        const text = node.nodeValue.trim();
-        if (text) blocks.push(text);
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        const content = blockMarkdown(node);
-        if (content) blocks.push(content);
-      }
-    });
-    return blocks.join("\n\n").replace(/\n{3,}/g, "\n\n").trim();
+    return state.editorInstance ? state.editorInstance.getMarkdown().trim() : "";
   }
 
   function editorWords(markdown) {
@@ -242,177 +131,61 @@
     const words = editorWords(markdown);
     wordCount.textContent = `${words} ${words === 1 ? "palavra" : "palavras"}`;
     readTime.textContent = `${window.Pollo.readingMinutes(markdown)} min de leitura`;
-    updateEmptyState();
   }
 
-  function currentBlock() {
-    const selection = window.getSelection();
-    if (!selection || !selection.rangeCount) return null;
-    const range = selection.getRangeAt(0);
-    let node = range.startContainer;
-
-    if (node === editorContent) {
-      const child = editorContent.childNodes[range.startOffset] || editorContent.lastElementChild;
-      return child && child.nodeType === Node.ELEMENT_NODE ? child : null;
+  function ensureMarkdownEditor() {
+    if (state.editorInstance) return true;
+    if (!window.toastui || !window.toastui.Editor) {
+      setSaveState("Não foi possível carregar o editor.", true);
+      return false;
     }
 
-    while (node && node.parentNode !== editorContent) node = node.parentNode;
-    return node && node.nodeType === Node.ELEMENT_NODE ? node : null;
-  }
+    const codeSyntaxHighlight = window.toastui.Editor.plugin ? window.toastui.Editor.plugin.codeSyntaxHighlight : null;
 
-  function placeCaret(element, atStart) {
-    const range = document.createRange();
-    const selection = window.getSelection();
-    range.selectNodeContents(element);
-    range.collapse(Boolean(atStart));
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
-
-  function replaceInlineMatch(textNode, start, length, replacement, after) {
-    const parent = textNode.parentNode;
-    const value = textNode.nodeValue;
-    textNode.nodeValue = value.slice(0, start);
-    parent.insertBefore(replacement, textNode.nextSibling);
-    const tail = document.createTextNode(after || "");
-    parent.insertBefore(tail, replacement.nextSibling);
-
-    const selection = window.getSelection();
-    const range = document.createRange();
-    range.setStart(tail, 0);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
-
-  function autoFormatInline() {
-    const selection = window.getSelection();
-    if (!selection || !selection.rangeCount || !selection.isCollapsed) return;
-    const range = selection.getRangeAt(0);
-    const node = range.startContainer;
-    if (node.nodeType !== Node.TEXT_NODE || !editorContent.contains(node)) return;
-    if (node.parentElement && node.parentElement.closest("pre, code")) return;
-
-    const text = node.nodeValue;
-    const offset = range.startOffset;
-    const before = text.slice(0, offset);
-    const after = text.slice(offset);
-
-    const patterns = [
-      {
-        expression: /\[([^\]]+)\]\(([^)\s]+)\)$/,
-        build: (match) => {
-          const href = match[2];
-          if (!/^(https?:\/\/|mailto:|\/|#|\.\/|\.\.\/)/i.test(href)) return null;
-          const link = document.createElement("a");
-          link.href = href;
-          link.textContent = match[1];
-          if (/^https?:\/\//i.test(href)) {
-            link.target = "_blank";
-            link.rel = "noopener noreferrer";
-          }
-          return link;
+    try {
+      state.editorInstance = new window.toastui.Editor({
+        el: markdownEditorHost,
+        height: "auto",
+        minHeight: "560px",
+        initialEditType: "wysiwyg",
+        previewStyle: "tab",
+        hideModeSwitch: true,
+        usageStatistics: false,
+        autofocus: false,
+        language: "pt-BR",
+        placeholder: "Escreva seu artigo",
+        toolbarItems: [
+          ["heading", "bold", "italic", "strike"],
+          ["hr", "quote"],
+          ["ul", "ol", "task", "indent", "outdent"],
+          ["table", "image", "link"],
+          ["code", "codeblock"],
+        ],
+        plugins: codeSyntaxHighlight ? [codeSyntaxHighlight] : [],
+        hooks: {
+          addImageBlobHook: async (blob, callback) => {
+            try {
+              const dataUrl = await optimizeImage(blob);
+              callback(dataUrl, blob.name || "imagem");
+              markChanged();
+            } catch (error) {
+              setSaveState("Não foi possível carregar a imagem.", true);
+            }
+          },
         },
-      },
-      {
-        expression: /\*\*([^*\n]+)\*\*$/,
-        build: (match) => {
-          const strong = document.createElement("strong");
-          strong.textContent = match[1];
-          return strong;
+        events: {
+          change: () => {
+            if (state.syncingEditor) return;
+            updateStats();
+            markChanged();
+          },
         },
-      },
-      {
-        expression: /__([^_\n]+)__$/,
-        build: (match) => {
-          const strong = document.createElement("strong");
-          strong.textContent = match[1];
-          return strong;
-        },
-      },
-      {
-        expression: /`([^`\n]+)`$/,
-        build: (match) => {
-          const code = document.createElement("code");
-          code.textContent = match[1];
-          return code;
-        },
-      },
-      {
-        expression: /\*([^*\n]+)\*$/,
-        build: (match) => {
-          const em = document.createElement("em");
-          em.textContent = match[1];
-          return em;
-        },
-      },
-      {
-        expression: /_([^_\n]+)_$/,
-        build: (match) => {
-          const em = document.createElement("em");
-          em.textContent = match[1];
-          return em;
-        },
-      },
-    ];
-
-    for (const pattern of patterns) {
-      const match = before.match(pattern.expression);
-      if (!match) continue;
-      const replacement = pattern.build(match);
-      if (!replacement) continue;
-      replaceInlineMatch(node, match.index, match[0].length, replacement, after);
-      return;
+      });
+      return true;
+    } catch (error) {
+      setSaveState("Não foi possível carregar o editor.", true);
+      return false;
     }
-  }
-
-  function convertBlock(block, target) {
-    let replacement;
-    let focusNode;
-
-    if (target === "ul" || target === "ol") {
-      replacement = document.createElement(target);
-      const item = document.createElement("li");
-      replacement.appendChild(item);
-      focusNode = item;
-    } else {
-      replacement = document.createElement(target);
-      replacement.innerHTML = "<br>";
-      focusNode = replacement;
-    }
-
-    block.replaceWith(replacement);
-    editorContent.focus();
-    placeCaret(focusNode, true);
-    markChanged();
-  }
-
-  function insertParagraphAfter(block) {
-    const paragraph = document.createElement("p");
-    paragraph.innerHTML = "<br>";
-    block.insertAdjacentElement("afterend", paragraph);
-    editorContent.focus();
-    placeCaret(paragraph, true);
-    markChanged();
-  }
-
-  function formatSelection(format) {
-    editorContent.focus();
-    const block = currentBlock();
-
-    if (format === "bold" || format === "italic") {
-      document.execCommand(format, false);
-    } else if (format === "heading") {
-      const isHeading = block && /^H[2-3]$/.test(block.tagName);
-      document.execCommand("formatBlock", false, isHeading ? "p" : "h2");
-    } else if (format === "quote") {
-      const isQuote = block && block.closest("blockquote");
-      document.execCommand("formatBlock", false, isQuote ? "p" : "blockquote");
-    } else if (format === "list") {
-      document.execCommand("insertUnorderedList", false);
-    }
-
-    markChanged();
   }
 
   function markChanged() {
@@ -554,15 +327,26 @@
     renderTagEditor();
     setCover(source ? source.thumbnail || "" : "");
     const markdown = source ? source.body || "" : "";
-    editorContent.innerHTML = markdown ? window.PolloMarkdown.render(markdown) : "<p><br></p>";
-    updateEmptyState();
-    updateStats();
-    setSaveState(draft ? "Rascunho carregado" : "");
 
     adminView.classList.add("is-editing");
     dashboardView.hidden = true;
     editorView.hidden = false;
     document.title = "Editor — pollo.city";
+
+    state.syncingEditor = true;
+    if (ensureMarkdownEditor()) {
+      state.editorInstance.setMarkdown(markdown, false);
+      updateStats();
+      window.setTimeout(() => {
+        state.syncingEditor = false;
+        updateStats();
+      }, 100);
+    } else {
+      state.syncingEditor = false;
+    }
+
+    state.dirty = false;
+    setSaveState(draft ? "Rascunho carregado" : "");
     window.scrollTo({ top: 0, behavior: "auto" });
     window.requestAnimationFrame(() => titleField.focus({ preventScroll: true }));
   }
@@ -598,7 +382,7 @@
 
     if (!data.body) {
       setSaveState("Escreva o conteúdo do artigo.", true);
-      editorContent.focus();
+      if (state.editorInstance) state.editorInstance.focus();
       return;
     }
 
@@ -766,60 +550,6 @@
     tagInput.focus();
   });
 
-  editorContent.addEventListener("input", (event) => {
-    if (event.isComposing) return;
-    autoFormatInline();
-    markChanged();
-  });
-
-  editorContent.addEventListener("keydown", (event) => {
-    if ((event.ctrlKey || event.metaKey) && !event.altKey) {
-      const key = event.key.toLowerCase();
-      if (key === "b" || key === "i") {
-        event.preventDefault();
-        document.execCommand(key === "b" ? "bold" : "italic", false);
-        markChanged();
-        return;
-      }
-    }
-
-    if (event.key === " " && !event.shiftKey) {
-      const block = currentBlock();
-      if (!block || !["P", "DIV"].includes(block.tagName)) return;
-      const marker = block.textContent.trim();
-      const targets = { "#": "h2", "##": "h3", ">": "blockquote", "-": "ul", "*": "ul", "1.": "ol" };
-      const target = targets[marker];
-      if (!target) return;
-      event.preventDefault();
-      convertBlock(block, target);
-      return;
-    }
-
-    if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
-      const block = currentBlock();
-      if (block && /^H[2-3]$/.test(block.tagName)) {
-        event.preventDefault();
-        insertParagraphAfter(block);
-      }
-    }
-  });
-
-  editorContent.addEventListener("paste", (event) => {
-    event.preventDefault();
-    const text = (event.clipboardData || window.clipboardData).getData("text/plain");
-    document.execCommand("insertText", false, text);
-  });
-
-  toolbar.addEventListener("mousedown", (event) => {
-    if (event.target.closest("[data-format]")) event.preventDefault();
-  });
-
-  toolbar.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-format]");
-    if (!button) return;
-    formatSelection(button.dataset.format);
-  });
-
   coverButton.addEventListener("click", () => coverInput.click());
 
   coverInput.addEventListener("change", async () => {
@@ -919,13 +649,15 @@
     if (!state.editorOpen || !(event.ctrlKey || event.metaKey)) return;
     if (event.key.toLowerCase() === "s") {
       event.preventDefault();
+      event.stopPropagation();
       persistDraft(true);
     }
     if (event.key === "Enter") {
       event.preventDefault();
+      event.stopPropagation();
       publishArticle();
     }
-  });
+  }, true);
 
   window.addEventListener("beforeunload", () => {
     if (!state.editorOpen) return;
