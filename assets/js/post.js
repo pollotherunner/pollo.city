@@ -1,24 +1,38 @@
-(function () {
+(async function () {
   const params = new URLSearchParams(window.location.search);
   const requestedSlug = params.get("slug");
-  const posts = window.Pollo.getPosts();
-  const post = requestedSlug ? window.Pollo.getPost(requestedSlug) : posts[0];
   const article = document.querySelector("#article");
   const commentsSection = document.querySelector("#comentarios");
   const progress = document.querySelector(".reading-progress");
   const escape = window.Pollo.escapeHTML;
 
-  if (!post) {
+  function renderNotFound(message) {
     if (commentsSection) commentsSection.remove();
     if (progress) progress.remove();
     document.title = "Artigo não encontrado — pollo.city";
     article.innerHTML = `<div class="not-found">
       <p class="eyebrow">Erro 404</p>
       <h1 class="not-found-title">Esse artigo não existe.</h1>
-      <p>O endereço pode ter mudado, ou o artigo nunca esteve aqui.</p>
+      <p>${escape(message)}</p>
       <a class="button" href="index.html#artigos">Voltar aos artigos <i data-lucide="arrow-left"></i></a>
     </div>`;
     window.PolloUI.refreshIcons();
+  }
+
+  let posts;
+  try {
+    posts = await window.Pollo.getPosts();
+  } catch (error) {
+    renderNotFound("Não foi possível carregar o artigo agora.");
+    return;
+  }
+
+  const post = requestedSlug
+    ? posts.find((item) => item.slug === requestedSlug)
+    : posts[0];
+
+  if (!post) {
+    renderNotFound("O endereço pode ter mudado, ou o artigo nunca esteve aqui.");
     return;
   }
 
@@ -73,13 +87,14 @@
     });
   }
 
-  let comments = window.Pollo.getComments(post.slug);
+  let comments = [];
   const commentCount = document.querySelector("[data-comment-count]");
   const commentsList = document.querySelector("#comments-list");
   const commentForm = document.querySelector("#comment-form");
   const nameField = document.querySelector("#comment-name");
   const bodyField = document.querySelector("#comment-body");
   const status = document.querySelector("#comment-status");
+  const submitButton = commentForm.querySelector('button[type="submit"]');
 
   function renderComments(highlightId) {
     commentCount.textContent = String(comments.length);
@@ -96,7 +111,7 @@
     comments.forEach((comment) => {
       const item = document.createElement("article");
       item.className = "comment-item";
-      item.dataset.commentId = comment.id;
+      item.dataset.commentId = String(comment.id);
 
       const avatar = document.createElement("span");
       avatar.className = "comment-avatar";
@@ -125,7 +140,7 @@
       item.append(avatar, content);
       commentsList.appendChild(item);
 
-      if (highlightId && comment.id === highlightId) {
+      if (highlightId && String(comment.id) === String(highlightId)) {
         item.setAttribute("tabindex", "-1");
         item.focus({ preventScroll: true });
       }
@@ -138,7 +153,14 @@
     status.hidden = false;
   }
 
-  commentForm.addEventListener("submit", (event) => {
+  try {
+    comments = await window.Pollo.getComments(post.slug);
+    renderComments();
+  } catch (error) {
+    commentsList.innerHTML = '<p class="comments-empty">Não foi possível carregar os comentários.</p>';
+  }
+
+  commentForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const name = nameField.value.trim();
     const message = bodyField.value.trim();
@@ -160,9 +182,10 @@
       return;
     }
 
+    submitButton.disabled = true;
     try {
-      const comment = window.Pollo.addComment(post.slug, { name, body: message });
-      comments = window.Pollo.getComments(post.slug);
+      const comment = await window.Pollo.addComment(post.slug, { name, body: message });
+      comments = await window.Pollo.getComments(post.slug);
       commentForm.reset();
       renderComments(comment.id);
       setStatus("Comentário publicado.", false);
@@ -170,11 +193,12 @@
         if (!status.classList.contains("is-error")) status.hidden = true;
       }, 5000);
     } catch (error) {
-      setStatus("Não foi possível salvar o comentário neste navegador.", true);
+      setStatus("Não foi possível publicar o comentário.", true);
+    } finally {
+      submitButton.disabled = false;
     }
   });
 
-  renderComments();
   window.PolloUI.refreshIcons();
 
   const progressBar = document.querySelector("[data-progress-bar]");
