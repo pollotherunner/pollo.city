@@ -1,6 +1,7 @@
 (function () {
   const POSTS_KEY = "pollo.posts.v1";
   const COMMENTS_KEY = "pollo.comments.v1";
+  const DEFAULT_THUMBNAIL = "assets/img/thumb-default.svg";
   const MONTHS = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
   const SEED_POSTS = [
@@ -10,6 +11,7 @@
       excerpt: "Sobre intenção, silêncio e a beleza discreta de uma interface que simplesmente funciona.",
       category: "Design",
       date: "2026-10-18",
+      thumbnail: "assets/img/thumb-interface.svg",
       body: `Há uma categoria de interface que quase nunca recebe crédito: aquela que não tenta ser assunto. Você abre, resolve o que precisava e segue com o dia. Nenhum tutorial, nenhuma celebração, nenhuma animação pedindo aplausos.
 
 É um tipo raro de cuidado. Fazer o óbvio exige mais decisões do que parece.
@@ -47,6 +49,7 @@ No fim, a melhor homenagem a uma interface discreta não é um elogio. É contin
       excerpt: "Na internet, fazer menos pode ser um ato de cuidado. Uma defesa das páginas leves e dos projetos que cabem na palma da mão.",
       category: "Ensaios",
       date: "2026-10-11",
+      thumbnail: "assets/img/thumb-site.svg",
       body: `A internet começou como uma coleção de lugares. Depois virou uma avenida com todas as lojas abertas ao mesmo tempo, cada uma tentando puxar a sua manga. Hoje, entrar em um site pode parecer atravessar um aeroporto para chegar a uma padaria.
 
 Talvez por isso os sites pequenos chamem tanta atenção. Eles não competem pelo resto da sua vida. Fazem uma coisa, fazem bem, e devolvem você ao mundo.
@@ -82,6 +85,7 @@ Ainda assim, o gesto importa. Toda página independente é uma pequena prova de 
       excerpt: "Um lembrete para quando a stack cresce mais do que a ideia: o navegador já sabe fazer muita coisa.",
       category: "Código",
       date: "2026-09-30",
+      thumbnail: "assets/img/thumb-code.svg",
       body: `Toda semana aparece uma ferramenta nova. E toda semana alguém começa um blog com quatro dependências, um gerador de páginas e uma esteira de publicação que ocupa uma tarde inteira. Nada contra ferramentas. Mas às vezes a ideia é menor que a infraestrutura.
 
 Um arquivo HTML, um pouco de CSS e alguns pixels de JavaScript podem resolver uma quantidade absurda de problemas. O navegador já vem com tipografia, links, formulários, navegação e histórico. O resto pode esperar.
@@ -90,14 +94,11 @@ Um arquivo HTML, um pouco de CSS e alguns pixels de JavaScript podem resolver um
 
 Hoje este site tem três páginas e um arquivo de estilos. Sem framework, sem banco, sem etapa de build. Para um caderno pessoal, isso não é uma limitação: é uma decisão de escopo.
 
-\`\`\`html
-<article>
-  <header>
-    <p class="eyebrow">Diário / 03</p>
-    <h1>Uma ideia pequena</h1>
-  </header>
-  <p>O texto começa aqui.</p>
-</article>
+\`\`\`css
+article {
+  max-width: 65ch;
+  margin-inline: auto;
+}
 \`\`\`
 
 É claro que esse caminho tem custos. Comentários não atravessam navegadores. A busca é simples. O conteúdo criado no painel mora apenas onde foi criado. Enquanto o objetivo é olhar, escrever e experimentar, esses custos são pequenos.
@@ -123,6 +124,7 @@ Escrever HTML é uma forma de colocar as ideias em ordem. O CSS dá ritmo. O Jav
       excerpt: "Uma volta pela minha mesa, pelos objetos que ficam e pelas coisas que nunca termino.",
       category: "Cadernos",
       date: "2026-09-21",
+      thumbnail: "assets/img/thumb-desk.svg",
       body: `Minha mesa não é um editorial de revista. Tem um caderno aberto em uma página de outubro, um copo com marca de café e três canetas das quais só uma funciona. Também tem uma pilha de papéis que comecei a chamar de arquivo, para não precisar organizá-los.
 
 A bagunça não é decoração. É uma forma de memória. Cada coisa parada ali foi deixada no meio de uma ideia.
@@ -232,11 +234,6 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
     return `${String(date.getDate()).padStart(2, "0")} ${MONTHS[date.getMonth()]} ${date.getFullYear()} · ${time}`;
   }
 
-  function formatLongDate(value) {
-    const date = parseDate(value);
-    return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getFullYear()).slice(-2)}`;
-  }
-
   function isoToday() {
     const date = new Date();
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -268,7 +265,7 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .slice(0, 72) || "nota-sem-titulo";
+      .slice(0, 72) || "artigo-sem-titulo";
   }
 
   function uniqueSlug(title) {
@@ -296,6 +293,13 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
     return `${text.slice(0, length).trim().replace(/[,.;:]$/, "")}…`;
   }
 
+  function thumbnailUrl(value) {
+    const url = String(value || "").trim();
+    if (!url) return DEFAULT_THUMBNAIL;
+    if (/^(https?:\/\/|\/|\.\/|assets\/)/i.test(url)) return url;
+    return DEFAULT_THUMBNAIL;
+  }
+
   function addPost(data) {
     const customPosts = getCustomPosts();
     const slug = uniqueSlug(data.title);
@@ -305,6 +309,7 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
       excerpt: String(data.excerpt || "").trim() || plainExcerpt(data.body, 150),
       category: String(data.category || "Cadernos").trim(),
       body: String(data.body || ""),
+      thumbnail: thumbnailUrl(data.thumbnail),
       date: isoToday(),
       createdAt: Date.now(),
       author: "Pollo",
@@ -355,20 +360,15 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
 
   window.Pollo = {
     formatDate,
-    formatLongDate,
     formatCommentDate,
     getPosts,
     getPost,
-    getCustomPosts,
     addPost,
     getComments,
     addComment,
     readingMinutes,
-    plainExcerpt,
-    slugify,
     initials,
     escapeHTML,
-    isoToday,
-    parseDate,
+    defaultThumbnail: DEFAULT_THUMBNAIL,
   };
 })();

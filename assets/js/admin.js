@@ -11,6 +11,7 @@
   const postForm = document.querySelector("#post-form");
   const titleField = document.querySelector("#post-title");
   const categoryField = document.querySelector("#post-category");
+  const thumbnailField = document.querySelector("#post-thumbnail");
   const excerptField = document.querySelector("#post-excerpt");
   const bodyField = document.querySelector("#post-body");
   const feedback = document.querySelector("#publish-feedback");
@@ -47,7 +48,7 @@
   function showAdmin() {
     authView.hidden = true;
     adminView.hidden = false;
-    document.title = "Nova nota — pollo.city";
+    document.title = "Novo artigo — pollo.city";
     window.PolloUI.refreshIcons();
     document.querySelector("#admin-title").focus({ preventScroll: true });
   }
@@ -116,14 +117,15 @@
       const post = window.Pollo.addPost({
         title: titleField.value,
         category: categoryField.value,
+        thumbnail: thumbnailField.value,
         excerpt: excerptField.value,
         body: bodyField.value,
       });
       postForm.reset();
-      showFeedback("Nota publicada.", false, post);
+      showFeedback("Artigo publicado.", false, post);
       titleField.focus({ preventScroll: true });
     } catch (error) {
-      showFeedback("Não foi possível salvar a nota neste navegador.", true, null);
+      showFeedback("Não foi possível publicar o artigo.", true, null);
     }
   });
 

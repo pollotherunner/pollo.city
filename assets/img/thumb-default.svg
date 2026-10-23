@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Composição geométrica em preto e branco">
+  <rect width="800" height="500" fill="#0a0a0a"/>
+  <g stroke="#202020" stroke-width="1">
+    <path d="M-100 100L100 -100M0 200L200 0M100 300L300 100M200 400L400 200M300 500L500 300M400 600L600 400M500 700L700 500M600 800L800 600M700 900L900 700"/>
+  </g>
+  <rect x="198" y="134" width="404" height="232" fill="none" stroke="#ffffff" stroke-width="3"/>
+  <circle cx="400" cy="250" r="88" fill="none" stroke="#ffffff" stroke-width="3"/>
+  <path d="M198 366l404-232" stroke="#ffffff" stroke-width="2"/>
+  <rect x="616" y="82" width="34" height="34" fill="#ffffff"/>
+  <rect x="150" y="384" width="90" height="12" fill="#ffffff"/>
+</svg>

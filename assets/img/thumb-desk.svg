@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="Composição geométrica em preto e branco">
+  <rect width="800" height="500" fill="#dddddd"/>
+  <path d="M0 410h800" stroke="#bdbdbd" stroke-width="2"/>
+  <g transform="rotate(-5 330 250)">
+    <rect x="122" y="96" width="376" height="310" fill="#ffffff" stroke="#0a0a0a" stroke-width="3"/>
+    <path d="M166 156h250M166 188h286M166 220h212M166 252h260M166 284h234" stroke="#a7a7a7" stroke-width="7"/>
+    <rect x="166" y="328" width="104" height="30" fill="#0a0a0a"/>
+  </g>
+  <g transform="rotate(7 540 255)">
+    <rect x="394" y="126" width="284" height="250" fill="#0a0a0a"/>
+    <circle cx="536" cy="251" r="64" fill="none" stroke="#ffffff" stroke-width="3"/>
+    <path d="M456 321h158" stroke="#ffffff" stroke-width="2"/>
+  </g>
+  <circle cx="704" cy="74" r="27" fill="#0a0a0a"/>
+</svg>

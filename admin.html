@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Admin — pollo.city</title>
-  <meta name="description" content="Painel local do pollo.city.">
+  <meta name="description" content="Painel do pollo.city.">
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#ffffff">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -19,7 +19,6 @@
       <div class="auth-card">
         <p class="eyebrow auth-eyebrow"><i data-lucide="lock-keyhole"></i> Área restrita</p>
         <h1 class="auth-title" id="auth-title">Admin.</h1>
-        <p class="auth-deck">Entre com a senha secreta para publicar uma nota.</p>
         <form id="login-form">
           <input type="text" name="username" value="admin" autocomplete="username" hidden>
           <div class="field">
@@ -32,7 +31,6 @@
           <button class="button auth-submit" type="submit">Entrar <i data-lucide="arrow-right"></i></button>
           <p class="auth-error" id="login-error" role="alert" hidden>Senha incorreta. Tente de novo.</p>
         </form>
-        <p class="auth-note"><i data-lucide="lock-keyhole"></i><span>Sem conta. A sessão e as notas ficam apenas neste navegador.</span></p>
       </div>
     </section>
 
@@ -41,27 +39,22 @@
         <header class="admin-header">
           <div>
             <p class="eyebrow">Painel</p>
-            <h1 class="admin-title" id="admin-title" tabindex="-1">Nova nota</h1>
+            <h1 class="admin-title" id="admin-title" tabindex="-1">Novo artigo</h1>
           </div>
-          <div class="admin-header-actions">
-            <span class="session-label"><i data-lucide="lock-keyhole"></i>Sessão local</span>
-            <button class="logout-button" id="logout-button" type="button">Sair <i data-lucide="log-out"></i></button>
-          </div>
+          <button class="logout-button" id="logout-button" type="button">Sair <i data-lucide="log-out"></i></button>
         </header>
-
-        <p class="admin-intro">Escreva em Markdown. A nota aparece no diário assim que você publicar.</p>
 
         <div class="publish-feedback" id="publish-feedback" role="status" aria-live="polite" hidden>
           <span class="feedback-mark" aria-hidden="true"><i data-lucide="check"></i></span>
-          <span class="feedback-message">Nota publicada.</span>
-          <a id="published-link" href="index.html#diario">Abrir nota <i data-lucide="arrow-up-right"></i></a>
+          <span class="feedback-message">Artigo publicado.</span>
+          <a id="published-link" href="index.html#artigos">Abrir artigo <i data-lucide="arrow-up-right"></i></a>
         </div>
 
         <form class="admin-form" id="post-form">
           <div class="form-row">
             <div class="field">
               <label class="field-label" for="post-title">Título</label>
-              <input class="input admin-input admin-title-input" id="post-title" name="title" type="text" maxlength="100" placeholder="Título da nota" required>
+              <input class="input admin-input admin-title-input" id="post-title" name="title" type="text" maxlength="100" placeholder="Título do artigo" required>
             </div>
             <div class="field">
               <label class="field-label" for="post-category">Categoria</label>
@@ -75,19 +68,22 @@
           </div>
 
           <div class="field">
+            <label class="field-label" for="post-thumbnail">Thumbnail</label>
+            <input class="input admin-input" id="post-thumbnail" name="thumbnail" type="url" placeholder="URL da imagem">
+          </div>
+
+          <div class="field">
             <label class="field-label" for="post-excerpt">Resumo</label>
-            <textarea class="input admin-input" id="post-excerpt" name="excerpt" rows="2" maxlength="180" placeholder="Uma frase curta sobre a nota. Opcional."></textarea>
+            <textarea class="input admin-input" id="post-excerpt" name="excerpt" rows="2" maxlength="180" placeholder="Resumo do artigo"></textarea>
           </div>
 
           <div class="field">
             <label class="field-label" for="post-body">Conteúdo em Markdown</label>
             <textarea class="input admin-input editor-body" id="post-body" name="body" rows="16" placeholder="# Um começo&#10;&#10;Escreva como se estivesse conversando.&#10;&#10;> Uma citação também cabe.&#10;&#10;- uma ideia&#10;- outra ideia" required></textarea>
-            <p class="field-hint">Aceita títulos com <code>#</code>, negrito com <code>**texto**</code>, listas com <code>-</code> e citações com <code>&gt;</code>.</p>
           </div>
 
           <div class="admin-submit-row">
-            <p>Sem backend. As notas criadas aqui ficam salvas neste navegador.</p>
-            <button class="button" type="submit">Publicar nota <i data-lucide="arrow-up-right"></i></button>
+            <button class="button" type="submit">Publicar artigo <i data-lucide="arrow-up-right"></i></button>
           </div>
         </form>
       </div>

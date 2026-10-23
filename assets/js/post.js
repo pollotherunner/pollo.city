@@ -11,12 +11,12 @@
   if (!post) {
     if (commentsSection) commentsSection.remove();
     if (progress) progress.remove();
-    document.title = "Nota não encontrada — pollo.city";
+    document.title = "Artigo não encontrado — pollo.city";
     article.innerHTML = `<div class="not-found">
-      <p class="eyebrow">404 / fora do ninho</p>
-      <h1 class="not-found-title">Essa nota não existe.</h1>
-      <p>O endereço pode ter mudado, ou a nota nunca esteve aqui.</p>
-      <a class="button" href="index.html#diario">Voltar ao diário <i data-lucide="arrow-left"></i></a>
+      <p class="eyebrow">Erro 404</p>
+      <h1 class="not-found-title">Esse artigo não existe.</h1>
+      <p>O endereço pode ter mudado, ou o artigo nunca esteve aqui.</p>
+      <a class="button" href="index.html#artigos">Voltar aos artigos <i data-lucide="arrow-left"></i></a>
     </div>`;
     window.PolloUI.refreshIcons();
     return;
@@ -33,14 +33,11 @@
   document.querySelector('meta[name="description"]').setAttribute("content", post.excerpt);
 
   metaHost.innerHTML = `<span class="post-category">${escape(post.category)}</span>
-    <span class="meta-slash">/</span>
     <time datetime="${escape(post.date)}">${window.Pollo.formatDate(post.date)}</time>`;
   title.textContent = post.title;
   deck.textContent = post.excerpt;
   byline.innerHTML = `<span class="byline-author">Por Pollo</span>
-    <span class="meta-slash">/</span>
     <span>São Paulo, BR</span>
-    <span class="meta-slash">/</span>
     <span class="meta-icon"><i data-lucide="clock"></i>${minutes} min de leitura</span>`;
   body.innerHTML = window.PolloMarkdown.render(post.body);
 
@@ -59,7 +56,7 @@
     if (!comments.length) {
       const empty = document.createElement("p");
       empty.className = "comments-empty";
-      empty.textContent = "Ainda não há comentários. A primeira cadeira está livre.";
+      empty.textContent = "Nenhum comentário ainda.";
       commentsList.appendChild(empty);
       return;
     }
