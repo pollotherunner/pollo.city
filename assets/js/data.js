@@ -1,6 +1,9 @@
 (function () {
   const POSTS_KEY = "pollo.posts.v1";
   const COMMENTS_KEY = "pollo.comments.v1";
+  const OVERRIDES_KEY = "pollo.post-overrides.v1";
+  const HIDDEN_POSTS_KEY = "pollo.hidden-posts.v1";
+  const DRAFTS_KEY = "pollo.drafts.v1";
   const DEFAULT_THUMBNAIL = "assets/img/thumb-default.svg";
   const MONTHS = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 
@@ -196,6 +199,8 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
     "a-mesa-onde-as-ideias-pousam": [],
   };
 
+  const SEED_SLUGS = new Set(SEED_POSTS.map((post) => post.slug));
+
   function readJSON(key, fallback) {
     try {
       const raw = window.localStorage.getItem(key);
@@ -245,7 +250,19 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
   }
 
   function getPosts() {
-    const posts = [...getCustomPosts(), ...SEED_POSTS];
+    const storedOverrides = readJSON(OVERRIDES_KEY, {});
+    const storedHidden = readJSON(HIDDEN_POSTS_KEY, []);
+    const overrides = storedOverrides && typeof storedOverrides === "object" ? storedOverrides : {};
+    const hidden = new Set(Array.isArray(storedHidden) ? storedHidden : []);
+    const seedPosts = SEED_POSTS
+      .filter((post) => !hidden.has(post.slug))
+      .map((post) => ({
+        ...post,
+        ...(overrides[post.slug] && typeof overrides[post.slug] === "object" ? overrides[post.slug] : {}),
+        slug: post.slug,
+        date: post.date,
+      }));
+    const posts = [...getCustomPosts(), ...seedPosts];
     return posts.sort((a, b) => {
       const dateA = parseDate(a.date).getTime();
       const dateB = parseDate(b.date).getTime();
@@ -296,7 +313,7 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
   function thumbnailUrl(value) {
     const url = String(value || "").trim();
     if (!url) return DEFAULT_THUMBNAIL;
-    if (/^(https?:\/\/|\/|\.\/|assets\/)/i.test(url)) return url;
+    if (/^(https?:\/\/|\/|\.\/|assets\/|data:image\/(png|jpe?g|webp|gif);base64,)/i.test(url)) return url;
     return DEFAULT_THUMBNAIL;
   }
 
@@ -317,6 +334,116 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
     customPosts.push(post);
     writeJSON(POSTS_KEY, customPosts);
     return post;
+  }
+
+  function updatePost(slug, data) {
+    const fields = {
+      title: String(data.title || "").trim(),
+      excerpt: String(data.excerpt || "").trim() || plainExcerpt(data.body, 150),
+      category: String(data.category || "Cadernos").trim(),
+      body: String(data.body || ""),
+      thumbnail: thumbnailUrl(data.thumbnail),
+      updatedAt: Date.now(),
+    };
+
+    if (SEED_SLUGS.has(slug)) {
+      const overrides = readJSON(OVERRIDES_KEY, {});
+      overrides[slug] = fields;
+      writeJSON(OVERRIDES_KEY, overrides);
+    } else {
+      const customPosts = getCustomPosts();
+      const index = customPosts.findIndex((post) => post.slug === slug);
+      if (index < 0) throw new Error("post-not-found");
+      customPosts[index] = { ...customPosts[index], ...fields };
+      writeJSON(POSTS_KEY, customPosts);
+    }
+
+    return getPost(slug);
+  }
+
+  function deletePost(slug) {
+    if (SEED_SLUGS.has(slug)) {
+      const hidden = readJSON(HIDDEN_POSTS_KEY, []);
+      writeJSON(HIDDEN_POSTS_KEY, [...new Set([...hidden, slug])]);
+      const overrides = readJSON(OVERRIDES_KEY, {});
+      delete overrides[slug];
+      writeJSON(OVERRIDES_KEY, overrides);
+    } else {
+      writeJSON(POSTS_KEY, getCustomPosts().filter((post) => post.slug !== slug));
+    }
+
+    const drafts = getDrafts().filter((draft) => draft.postSlug !== slug);
+    writeJSON(DRAFTS_KEY, drafts);
+    const comments = readJSON(COMMENTS_KEY, {});
+    delete comments[slug];
+    writeJSON(COMMENTS_KEY, comments);
+  }
+
+  function getDrafts() {
+    const drafts = readJSON(DRAFTS_KEY, []);
+    return (Array.isArray(drafts) ? drafts : []).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  }
+
+  function getDraft(draftId) {
+    return getDrafts().find((draft) => draft.id === draftId) || null;
+  }
+
+  function getDraftForPost(slug) {
+    return getDrafts().find((draft) => draft.postSlug === slug) || null;
+  }
+
+  function saveDraft(data) {
+    const drafts = getDrafts();
+    const id = data.id || `draft-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    const draft = {
+      id,
+      postSlug: data.postSlug || null,
+      title: String(data.title || ""),
+      category: String(data.category || "Cadernos"),
+      thumbnail: String(data.thumbnail || ""),
+      body: String(data.body || ""),
+      updatedAt: Date.now(),
+    };
+    const index = drafts.findIndex((item) => item.id === id);
+    if (index >= 0) drafts[index] = draft;
+    else drafts.push(draft);
+    writeJSON(DRAFTS_KEY, drafts);
+    return draft;
+  }
+
+  function deleteDraft(draftId) {
+    writeJSON(DRAFTS_KEY, getDrafts().filter((draft) => draft.id !== draftId));
+  }
+
+  function exportData() {
+    return {
+      app: "pollo.city",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data: {
+        posts: getCustomPosts(),
+        comments: readJSON(COMMENTS_KEY, {}),
+        drafts: getDrafts(),
+        overrides: readJSON(OVERRIDES_KEY, {}),
+        hidden: readJSON(HIDDEN_POSTS_KEY, []),
+      },
+    };
+  }
+
+  function importData(payload) {
+    const data = payload && payload.data ? payload.data : payload;
+    if (!data || typeof data !== "object") throw new Error("invalid-backup");
+    if (data.posts !== undefined && !Array.isArray(data.posts)) throw new Error("invalid-backup");
+    if (data.comments !== undefined && (typeof data.comments !== "object" || Array.isArray(data.comments))) throw new Error("invalid-backup");
+    if (data.drafts !== undefined && !Array.isArray(data.drafts)) throw new Error("invalid-backup");
+    if (data.overrides !== undefined && (typeof data.overrides !== "object" || Array.isArray(data.overrides))) throw new Error("invalid-backup");
+    if (data.hidden !== undefined && !Array.isArray(data.hidden)) throw new Error("invalid-backup");
+
+    writeJSON(POSTS_KEY, data.posts || []);
+    writeJSON(COMMENTS_KEY, data.comments || {});
+    writeJSON(DRAFTS_KEY, data.drafts || []);
+    writeJSON(OVERRIDES_KEY, data.overrides || {});
+    writeJSON(HIDDEN_POSTS_KEY, data.hidden || []);
   }
 
   function getComments(slug) {
@@ -364,6 +491,15 @@ No fim do dia, arrumo o que dá. Sobra sempre uma caneta fora do lugar. Amanhã,
     getPosts,
     getPost,
     addPost,
+    updatePost,
+    deletePost,
+    getDrafts,
+    getDraft,
+    getDraftForPost,
+    saveDraft,
+    deleteDraft,
+    exportData,
+    importData,
     getComments,
     addComment,
     readingMinutes,

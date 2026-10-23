@@ -3,6 +3,7 @@
   const headerHost = document.querySelector("[data-site-header]");
   const footerHost = document.querySelector("[data-site-footer]");
   const blogCurrent = page === "home" || page === "post";
+  const archiveCurrent = page === "archive";
   const sobreCurrent = page === "sobre";
   const adminCurrent = page === "admin";
 
@@ -14,7 +15,9 @@
 
   const nav = `<nav class="nav-links" aria-label="Principal">
     <a href="index.html"${blogCurrent ? ' aria-current="page"' : ""}>Blog</a>
+    <a href="arquivo.html"${archiveCurrent ? ' aria-current="page"' : ""}>Arquivo</a>
     <a href="sobre.html"${sobreCurrent ? ' aria-current="page"' : ""}>Sobre</a>
+    <button class="search-toggle" type="button" aria-label="Buscar artigos" title="Buscar artigos" aria-haspopup="dialog" aria-expanded="false" aria-controls="site-search-dialog"><i data-lucide="search"></i></button>
     <a href="admin.html"${adminCurrent ? ' aria-current="page"' : ""}><i data-lucide="key-round"></i>Admin</a>
   </nav>`;
 
@@ -24,7 +27,18 @@
         <a class="brand" href="index.html" aria-label="pollo.city, página inicial">pollo.city</a>
         ${nav}
       </div>
-    </header>`;
+    </header>
+    <dialog class="search-dialog" id="site-search-dialog" aria-labelledby="search-title">
+      <div class="search-panel">
+        <div class="search-bar">
+          <i data-lucide="search" aria-hidden="true"></i>
+          <h2 class="sr-only" id="search-title">Buscar artigos</h2>
+          <input class="search-input" id="site-search-input" type="search" placeholder="Buscar artigos" aria-label="Buscar artigos" autocomplete="off" spellcheck="false">
+          <button class="search-close" type="button" data-close-search aria-label="Fechar busca"><i data-lucide="x"></i></button>
+        </div>
+        <div class="search-results" id="site-search-results"></div>
+      </div>
+    </dialog>`;
   }
 
   if (footerHost) {
@@ -34,6 +48,73 @@
         <a href="#top">Voltar ao topo <i data-lucide="arrow-up"></i></a>
       </div>
     </footer>`;
+  }
+
+  const searchDialog = document.querySelector("#site-search-dialog");
+  const searchInput = document.querySelector("#site-search-input");
+  const searchResults = document.querySelector("#site-search-results");
+  const searchToggle = document.querySelector(".search-toggle");
+  const searchClose = document.querySelector("[data-close-search]");
+
+  function normalize(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  }
+
+  function renderSearch(query) {
+    const term = normalize(query).trim();
+    const posts = window.Pollo ? window.Pollo.getPosts() : [];
+    const matches = posts.filter((post) => {
+      if (!term) return true;
+      return normalize(`${post.title} ${post.category} ${post.excerpt} ${post.body}`).includes(term);
+    });
+
+    if (!matches.length) {
+      searchResults.innerHTML = '<p class="search-empty">Nenhum artigo encontrado.</p>';
+      return;
+    }
+
+    searchResults.innerHTML = matches.map((post) => `<a class="search-result" href="post.html?slug=${encodeURIComponent(post.slug)}">
+      <span class="search-result-copy">
+        <span class="search-result-title">${window.Pollo.escapeHTML(post.title)}</span>
+        <span class="search-result-meta"><span>${window.Pollo.escapeHTML(post.category)}</span><time datetime="${window.Pollo.escapeHTML(post.date)}">${window.Pollo.formatDate(post.date)}</time></span>
+      </span>
+      <i data-lucide="arrow-up-right" aria-hidden="true"></i>
+    </a>`).join("");
+    window.PolloUI.refreshIcons();
+  }
+
+  if (searchDialog && searchInput && searchResults && searchToggle) {
+    searchToggle.addEventListener("click", () => {
+      searchInput.value = "";
+      renderSearch("");
+      searchToggle.setAttribute("aria-expanded", "true");
+      searchDialog.showModal();
+      window.requestAnimationFrame(() => searchInput.focus());
+    });
+
+    searchInput.addEventListener("input", () => renderSearch(searchInput.value));
+
+    searchInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      const firstResult = searchResults.querySelector(".search-result");
+      if (!firstResult) return;
+      event.preventDefault();
+      window.location.href = firstResult.getAttribute("href");
+    });
+
+    searchDialog.addEventListener("click", (event) => {
+      if (event.target === searchDialog) searchDialog.close();
+      if (event.target.closest(".search-result")) searchDialog.close();
+    });
+
+    searchDialog.addEventListener("close", () => {
+      searchToggle.setAttribute("aria-expanded", "false");
+    });
+
+    searchClose.addEventListener("click", () => searchDialog.close());
   }
 
   document.querySelectorAll("[data-current-year]").forEach((node) => {

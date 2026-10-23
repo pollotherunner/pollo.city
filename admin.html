@@ -34,58 +34,93 @@
       </div>
     </section>
 
-    <section class="admin-section" id="admin-view" aria-labelledby="admin-title" hidden>
-      <div class="admin-shell">
+    <section class="admin-section" id="admin-view" hidden>
+      <div class="admin-shell" id="dashboard-view">
         <header class="admin-header">
           <div>
             <p class="eyebrow">Painel</p>
-            <h1 class="admin-title" id="admin-title" tabindex="-1">Novo artigo</h1>
+            <h1 class="admin-title" id="admin-title" tabindex="-1">Artigos</h1>
           </div>
-          <button class="logout-button" id="logout-button" type="button">Sair <i data-lucide="log-out"></i></button>
+          <div class="admin-header-actions">
+            <button class="button" id="new-article-button" type="button">Novo artigo <i data-lucide="plus"></i></button>
+            <button class="logout-button" id="logout-button" type="button">Sair <i data-lucide="log-out"></i></button>
+          </div>
         </header>
 
-        <div class="publish-feedback" id="publish-feedback" role="status" aria-live="polite" hidden>
+        <div class="admin-tools">
+          <button class="text-button" id="export-button" type="button"><i data-lucide="download"></i>Exportar dados</button>
+          <button class="text-button" id="import-button" type="button"><i data-lucide="upload"></i>Importar dados</button>
+          <input id="import-input" type="file" accept="application/json,.json" hidden>
+        </div>
+
+        <div class="publish-feedback" id="admin-feedback" role="status" aria-live="polite" hidden>
           <span class="feedback-mark" aria-hidden="true"><i data-lucide="check"></i></span>
           <span class="feedback-message">Artigo publicado.</span>
           <a id="published-link" href="index.html#artigos">Abrir artigo <i data-lucide="arrow-up-right"></i></a>
         </div>
 
-        <form class="admin-form" id="post-form">
-          <div class="form-row">
-            <div class="field">
-              <label class="field-label" for="post-title">Título</label>
-              <input class="input admin-input admin-title-input" id="post-title" name="title" type="text" maxlength="100" placeholder="Título do artigo" required>
+        <section class="admin-group" aria-labelledby="published-title">
+          <header class="admin-group-head">
+            <h2 id="published-title">Publicados</h2>
+            <span id="published-count">0</span>
+          </header>
+          <div class="admin-list" id="published-list"></div>
+        </section>
+
+        <section class="admin-group" aria-labelledby="drafts-title">
+          <header class="admin-group-head">
+            <h2 id="drafts-title">Rascunhos</h2>
+            <span id="drafts-count">0</span>
+          </header>
+          <div class="admin-list" id="drafts-list"></div>
+        </section>
+      </div>
+
+      <div class="editor-view" id="editor-view" hidden>
+        <div class="editor-bar">
+          <div class="shell editor-bar-inner">
+            <button class="text-button" id="editor-back" type="button"><i data-lucide="arrow-left"></i>Painel</button>
+            <span class="editor-save-state" id="editor-save-state" role="status" aria-live="polite"></span>
+            <div class="editor-bar-actions">
+              <button class="button button--outline" id="save-draft-button" type="button" title="Salvar rascunho (Ctrl+S)">Salvar rascunho</button>
+              <button class="button" id="publish-button" type="button" title="Publicar (Ctrl+Enter)">Publicar <i data-lucide="arrow-up-right"></i></button>
             </div>
-            <div class="field">
-              <label class="field-label" for="post-category">Categoria</label>
-              <select class="input admin-input" id="post-category" name="category">
-                <option value="Design">Design</option>
-                <option value="Ensaios">Ensaios</option>
-                <option value="Código">Código</option>
-                <option value="Cadernos">Cadernos</option>
-              </select>
-            </div>
+          </div>
+        </div>
+
+        <div class="editor-page">
+          <h1 class="sr-only">Editor de artigo</h1>
+          <div class="editor-cover">
+            <img id="cover-preview" alt="" src="assets/img/thumb-default.svg">
+            <button class="cover-button" id="cover-button" type="button"><i data-lucide="image"></i><span id="cover-button-label">Adicionar thumbnail</span></button>
+            <input id="cover-input" type="file" accept="image/*" hidden>
           </div>
 
-          <div class="field">
-            <label class="field-label" for="post-thumbnail">Thumbnail</label>
-            <input class="input admin-input" id="post-thumbnail" name="thumbnail" type="url" placeholder="URL da imagem">
+          <select class="editor-category" id="editor-category" aria-label="Categoria">
+            <option value="Design">Design</option>
+            <option value="Ensaios">Ensaios</option>
+            <option value="Código">Código</option>
+            <option value="Cadernos">Cadernos</option>
+          </select>
+
+          <label class="sr-only" for="editor-title">Título do artigo</label>
+          <input class="editor-title-input" id="editor-title" type="text" maxlength="100" placeholder="Título do artigo">
+
+          <div class="editor-toolbar" role="toolbar" aria-label="Formatação do texto">
+            <button class="editor-tool" type="button" data-format="bold" aria-label="Negrito" title="Negrito"><i data-lucide="bold"></i></button>
+            <button class="editor-tool" type="button" data-format="italic" aria-label="Itálico" title="Itálico"><i data-lucide="italic"></i></button>
+            <button class="editor-tool" type="button" data-format="heading" aria-label="Título" title="Título"><i data-lucide="heading-2"></i></button>
+            <button class="editor-tool" type="button" data-format="quote" aria-label="Citação" title="Citação"><i data-lucide="quote"></i></button>
+            <button class="editor-tool" type="button" data-format="list" aria-label="Lista" title="Lista"><i data-lucide="list"></i></button>
           </div>
 
-          <div class="field">
-            <label class="field-label" for="post-excerpt">Resumo</label>
-            <textarea class="input admin-input" id="post-excerpt" name="excerpt" rows="2" maxlength="180" placeholder="Resumo do artigo"></textarea>
-          </div>
+          <div class="editor-content" id="editor-content" contenteditable="true" role="textbox" aria-label="Conteúdo do artigo" aria-multiline="true" data-placeholder="Escreva seu artigo"></div>
 
-          <div class="field">
-            <label class="field-label" for="post-body">Conteúdo em Markdown</label>
-            <textarea class="input admin-input editor-body" id="post-body" name="body" rows="16" placeholder="# Um começo&#10;&#10;Escreva como se estivesse conversando.&#10;&#10;> Uma citação também cabe.&#10;&#10;- uma ideia&#10;- outra ideia" required></textarea>
-          </div>
-
-          <div class="admin-submit-row">
-            <button class="button" type="submit">Publicar artigo <i data-lucide="arrow-up-right"></i></button>
-          </div>
-        </form>
+          <footer class="editor-stats">
+            <span id="editor-word-count">0 palavras</span>
+            <span id="editor-read-time">1 min de leitura</span>
+          </footer>
+        </div>
       </div>
     </section>
   </main>
@@ -94,6 +129,7 @@
 
   <script src="assets/vendor/lucide.min.js" defer></script>
   <script src="assets/js/data.js" defer></script>
+  <script src="assets/js/markdown.js" defer></script>
   <script src="assets/js/common.js" defer></script>
   <script src="assets/js/admin.js" defer></script>
 </body>
