@@ -1,4 +1,4 @@
-(function () {
+(async function () {
   const list = document.querySelector("#post-list");
   const tagFilter = document.querySelector("#tag-filter");
   const count = document.querySelector("[data-post-count]");
@@ -7,14 +7,12 @@
   const graphCanvas = document.querySelector("#posts-graph");
   const viewButtons = [...document.querySelectorAll("[data-view]")];
   const siteHeader = document.querySelector(".site-header");
-  const posts = window.Pollo.getPosts();
-  const tags = window.Pollo.getTags();
   const params = new URLSearchParams(window.location.search);
   const activeTag = window.Pollo.tagSlug(params.get("tag") || "");
-  const filteredPosts = activeTag
-    ? posts.filter((post) => post.tags.some((tag) => window.Pollo.tagSlug(tag) === activeTag))
-    : posts;
   const escape = window.Pollo.escapeHTML;
+  let posts = [];
+  let tags = [];
+  let filteredPosts = [];
   let graph = null;
 
   function updateCount(total) {
@@ -26,22 +24,23 @@
     document.documentElement.style.setProperty("--graph-top", `${siteHeader.offsetHeight}px`);
   }
 
-  updateCount(filteredPosts.length);
-  updateGraphTop();
-  window.addEventListener("resize", updateGraphTop);
+  function renderTagFilter() {
+    tagFilter.hidden = !tags.length;
+    tagFilter.innerHTML = [
+      `<a class="tag-filter-link${activeTag ? "" : " is-active"}" href="index.html"${activeTag ? "" : ' aria-current="true"'}>Todas</a>`,
+      ...tags.map((tag) => {
+        const active = tag.slug === activeTag;
+        return `<a class="tag-filter-link${active ? " is-active" : ""}" href="index.html?tag=${encodeURIComponent(tag.slug)}"${active ? ' aria-current="true"' : ""}>${escape(tag.name)}</a>`;
+      }),
+    ].join("");
+  }
 
-  tagFilter.hidden = !tags.length;
-  tagFilter.innerHTML = [
-    `<a class="tag-filter-link${activeTag ? "" : " is-active"}" href="index.html"${activeTag ? "" : ' aria-current="true"'}>Todas</a>`,
-    ...tags.map((tag) => {
-      const active = tag.slug === activeTag;
-      return `<a class="tag-filter-link${active ? " is-active" : ""}" href="index.html?tag=${encodeURIComponent(tag.slug)}"${active ? ' aria-current="true"' : ""}>${escape(tag.name)}</a>`;
-    }),
-  ].join("");
+  function renderPosts() {
+    if (!filteredPosts.length) {
+      list.innerHTML = `<p class="empty-state">${activeTag ? "Nenhum artigo com essa tag." : "Nenhum artigo ainda."}</p>`;
+      return;
+    }
 
-  if (!filteredPosts.length) {
-    list.innerHTML = `<p class="empty-state">${activeTag ? "Nenhum artigo com essa tag." : "Nenhum artigo ainda."}</p>`;
-  } else {
     list.innerHTML = filteredPosts.map((post) => {
       const minutes = window.Pollo.readingMinutes(post.body);
       const thumbnail = post.thumbnail || window.Pollo.defaultThumbnail;
@@ -67,13 +66,13 @@
         </div>
       </article>`;
     }).join("");
-  }
 
-  list.querySelectorAll(".post-thumb img").forEach((image) => {
-    image.addEventListener("error", () => {
-      image.src = window.Pollo.defaultThumbnail;
-    }, { once: true });
-  });
+    list.querySelectorAll(".post-thumb img").forEach((image) => {
+      image.addEventListener("error", () => {
+        image.src = window.Pollo.defaultThumbnail;
+      }, { once: true });
+    });
+  }
 
   function setView(view) {
     const showGraph = view === "graph";
@@ -102,9 +101,26 @@
     }
   }
 
-  viewButtons.forEach((button) => {
-    button.addEventListener("click", () => setView(button.dataset.view));
-  });
+  updateGraphTop();
+  window.addEventListener("resize", updateGraphTop);
+  list.innerHTML = '<p class="empty-state">Carregando artigos…</p>';
+  tagFilter.hidden = true;
+
+  try {
+    [posts, tags] = await Promise.all([window.Pollo.getPosts(), window.Pollo.getTags()]);
+    filteredPosts = activeTag
+      ? posts.filter((post) => post.tags.some((tag) => window.Pollo.tagSlug(tag) === activeTag))
+      : posts;
+    updateCount(filteredPosts.length);
+    renderTagFilter();
+    renderPosts();
+    viewButtons.forEach((button) => {
+      button.addEventListener("click", () => setView(button.dataset.view));
+    });
+  } catch (error) {
+    updateCount(0);
+    list.innerHTML = '<p class="empty-state">Não foi possível carregar os artigos.</p>';
+  }
 
   window.PolloUI.refreshIcons();
 })();

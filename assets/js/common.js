@@ -55,6 +55,7 @@
   const searchResults = document.querySelector("#site-search-results");
   const searchToggle = document.querySelector(".search-toggle");
   const searchClose = document.querySelector("[data-close-search]");
+  let searchPosts = [];
 
   function normalize(value) {
     return String(value || "")
@@ -65,8 +66,7 @@
 
   function renderSearch(query) {
     const term = normalize(query).trim();
-    const posts = window.Pollo ? window.Pollo.getPosts() : [];
-    const matches = posts.filter((post) => {
+    const matches = searchPosts.filter((post) => {
       if (!term) return true;
       return normalize(`${post.title} ${post.tags.join(" ")} ${post.excerpt} ${post.body}`).includes(term);
     });
@@ -86,16 +86,28 @@
     window.PolloUI.refreshIcons();
   }
 
-  if (searchDialog && searchInput && searchResults && searchToggle) {
-    searchToggle.addEventListener("click", () => {
-      searchInput.value = "";
-      renderSearch("");
-      searchToggle.setAttribute("aria-expanded", "true");
-      searchDialog.showModal();
-      window.requestAnimationFrame(() => searchInput.focus());
-    });
+  async function openSearch() {
+    searchInput.value = "";
+    searchResults.innerHTML = '<p class="search-empty">Carregando artigos…</p>';
+    searchToggle.setAttribute("aria-expanded", "true");
+    searchDialog.showModal();
+    window.requestAnimationFrame(() => searchInput.focus());
 
-    searchInput.addEventListener("input", () => renderSearch(searchInput.value));
+    try {
+      searchPosts = await window.Pollo.getPosts();
+      renderSearch(searchInput.value);
+    } catch (error) {
+      searchResults.innerHTML = '<p class="search-empty">Não foi possível carregar a busca.</p>';
+    }
+  }
+
+  if (searchDialog && searchInput && searchResults && searchToggle) {
+    searchToggle.addEventListener("click", openSearch);
+
+    searchInput.addEventListener("input", () => {
+      if (!searchPosts.length) return;
+      renderSearch(searchInput.value);
+    });
 
     searchInput.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
