@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin — pollo.city</title>
+  <meta name="description" content="Painel local do pollo.city.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body id="top" data-page="admin">
+  <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+  <div data-site-header></div>
+
+  <main id="conteudo">
+    <section class="auth-section" id="auth-view" aria-labelledby="auth-title">
+      <div class="auth-card">
+        <p class="eyebrow auth-eyebrow"><i data-lucide="lock-keyhole"></i> Área restrita</p>
+        <h1 class="auth-title" id="auth-title">Admin.</h1>
+        <p class="auth-deck">Entre com a senha secreta para publicar uma nota.</p>
+        <form id="login-form">
+          <input type="text" name="username" value="admin" autocomplete="username" hidden>
+          <div class="field">
+            <label class="field-label" for="admin-password">Senha</label>
+            <div class="password-wrap">
+              <input class="input" id="admin-password" name="password" type="password" autocomplete="current-password" placeholder="••••••••" required>
+              <button class="password-toggle" id="password-toggle" type="button" aria-label="Mostrar senha" aria-pressed="false"><i data-lucide="eye"></i></button>
+            </div>
+          </div>
+          <button class="button auth-submit" type="submit">Entrar <i data-lucide="arrow-right"></i></button>
+          <p class="auth-error" id="login-error" role="alert" hidden>Senha incorreta. Tente de novo.</p>
+        </form>
+        <p class="auth-note"><i data-lucide="lock-keyhole"></i><span>Sem conta. A sessão e as notas ficam apenas neste navegador.</span></p>
+      </div>
+    </section>
+
+    <section class="admin-section" id="admin-view" aria-labelledby="admin-title" hidden>
+      <div class="admin-shell">
+        <header class="admin-header">
+          <div>
+            <p class="eyebrow">Painel</p>
+            <h1 class="admin-title" id="admin-title" tabindex="-1">Nova nota</h1>
+          </div>
+          <div class="admin-header-actions">
+            <span class="session-label"><i data-lucide="lock-keyhole"></i>Sessão local</span>
+            <button class="logout-button" id="logout-button" type="button">Sair <i data-lucide="log-out"></i></button>
+          </div>
+        </header>
+
+        <p class="admin-intro">Escreva em Markdown. A nota aparece no diário assim que você publicar.</p>
+
+        <div class="publish-feedback" id="publish-feedback" role="status" aria-live="polite" hidden>
+          <span class="feedback-mark" aria-hidden="true"><i data-lucide="check"></i></span>
+          <span class="feedback-message">Nota publicada.</span>
+          <a id="published-link" href="index.html#diario">Abrir nota <i data-lucide="arrow-up-right"></i></a>
+        </div>
+
+        <form class="admin-form" id="post-form">
+          <div class="form-row">
+            <div class="field">
+              <label class="field-label" for="post-title">Título</label>
+              <input class="input admin-input admin-title-input" id="post-title" name="title" type="text" maxlength="100" placeholder="Título da nota" required>
+            </div>
+            <div class="field">
+              <label class="field-label" for="post-category">Categoria</label>
+              <select class="input admin-input" id="post-category" name="category">
+                <option value="Design">Design</option>
+                <option value="Ensaios">Ensaios</option>
+                <option value="Código">Código</option>
+                <option value="Cadernos">Cadernos</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="post-excerpt">Resumo</label>
+            <textarea class="input admin-input" id="post-excerpt" name="excerpt" rows="2" maxlength="180" placeholder="Uma frase curta sobre a nota. Opcional."></textarea>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="post-body">Conteúdo em Markdown</label>
+            <textarea class="input admin-input editor-body" id="post-body" name="body" rows="16" placeholder="# Um começo&#10;&#10;Escreva como se estivesse conversando.&#10;&#10;> Uma citação também cabe.&#10;&#10;- uma ideia&#10;- outra ideia" required></textarea>
+            <p class="field-hint">Aceita títulos com <code>#</code>, negrito com <code>**texto**</code>, listas com <code>-</code> e citações com <code>&gt;</code>.</p>
+          </div>
+
+          <div class="admin-submit-row">
+            <p>Sem backend. As notas criadas aqui ficam salvas neste navegador.</p>
+            <button class="button" type="submit">Publicar nota <i data-lucide="arrow-up-right"></i></button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <div data-site-footer></div>
+
+  <script src="assets/vendor/lucide.min.js" defer></script>
+  <script src="assets/js/data.js" defer></script>
+  <script src="assets/js/common.js" defer></script>
+  <script src="assets/js/admin.js" defer></script>
+</body>
+</html>
