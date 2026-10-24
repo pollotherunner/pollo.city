@@ -24,6 +24,7 @@ type PostInput struct {
 type DraftInput struct {
 	PostSlug  string
 	Title     string
+	Excerpt   string
 	Tags      []string
 	Thumbnail string
 	Body      string

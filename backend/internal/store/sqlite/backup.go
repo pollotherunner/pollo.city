@@ -92,9 +92,6 @@ func (s *Store) Import(ctx context.Context, backup *domain.Backup) error {
 			publishedAt = time.Now().UTC()
 		}
 		excerpt := strings.TrimSpace(post.Excerpt)
-		if excerpt == "" {
-			excerpt = excerptFromMarkdown(post.Body)
-		}
 		result, err := tx.ExecContext(ctx, `INSERT INTO posts
 			(slug, title, excerpt, body_markdown, thumbnail_url, published_at, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -146,9 +143,9 @@ func (s *Store) Import(ctx context.Context, backup *domain.Backup) error {
 			updatedAt = time.Now().UTC()
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO drafts
-			(id, post_id, title, body_markdown, thumbnail_url, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			id, postID, draft.Title, draft.Body, draft.Thumbnail, timeString(updatedAt), timeString(updatedAt)); err != nil {
+			(id, post_id, title, excerpt, body_markdown, thumbnail_url, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			id, postID, draft.Title, draft.Excerpt, draft.Body, draft.Thumbnail, timeString(updatedAt), timeString(updatedAt)); err != nil {
 			return fmt.Errorf("import draft %s: %w", id, err)
 		}
 		if err := setDraftTags(ctx, tx, id, draft.Tags); err != nil {

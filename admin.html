@@ -102,6 +102,11 @@
           <label class="sr-only" for="editor-title">Título do artigo</label>
           <input class="editor-title-input" id="editor-title" type="text" maxlength="100" placeholder="Título do artigo">
 
+          <div class="editor-field">
+            <label class="field-label" for="editor-excerpt">Resumo</label>
+            <textarea class="input editor-excerpt-input" id="editor-excerpt" maxlength="500" rows="2" placeholder="Uma frase curta para aparecer abaixo do título. Opcional."></textarea>
+          </div>
+
           <div class="editor-tags">
             <div class="tag-chips" id="editor-tag-chips"></div>
             <label class="sr-only" for="tag-input">Tags do artigo</label>
@@ -136,12 +141,12 @@
           <label class="sr-only" for="about-title">Título da página</label>
           <input class="editor-title-input" id="about-title" type="text" maxlength="100" placeholder="Título da página">
 
-          <div class="about-field">
+          <div class="editor-field">
             <label class="field-label" for="about-lede">Introdução</label>
             <textarea class="input about-lede-input" id="about-lede" maxlength="500" rows="3" placeholder="Uma introdução curta."></textarea>
           </div>
 
-          <div class="about-field">
+          <div class="editor-field">
             <p class="field-label">Conteúdo</p>
             <div class="markdown-editor" id="about-editor" aria-label="Conteúdo da página Sobre"></div>
           </div>
