@@ -150,7 +150,16 @@ export function createToolbar(options: ToolbarOptions): EditorToolbar {
     return false;
   };
 
-  const inAnyList = (state: EditorState): boolean => inNode(state, listItem) || inNode(state, taskItem);
+  const findAncestorList = (state: EditorState): { node: Node; pos: number } | null => {
+    const { $from } = state.selection;
+    for (let depth = $from.depth; depth >= 0; depth -= 1) {
+      const node = $from.node(depth);
+      if (node.type === bulletList || node.type === orderedList || node.type === taskList) {
+        return { node, pos: $from.before(depth) };
+      }
+    }
+    return null;
+  };
 
   const toggleBlockquote: Command = (state, dispatch) => {
     if (inNode(state, blockquote)) {
@@ -160,16 +169,31 @@ export function createToolbar(options: ToolbarOptions): EditorToolbar {
   };
 
   const toggleList = (listType: NodeType, itemType: NodeType): Command => (state, dispatch) => {
-    if (inNode(state, listType)) {
+    const current = findAncestorList(state);
+    if (!current) {
+      return wrapInList(listType)(state, dispatch);
+    }
+    if (current.node.type === listType) {
       return liftListItem(itemType)(state, dispatch);
     }
-    if (inAnyList(state) && dispatch) {
-      const currentItem = inNode(state, taskList) ? taskItem : listItem;
-      return liftListItem(currentItem)(state, (transaction) => {
-        wrapInList(listType)(state.apply(transaction), dispatch, options.getView() ?? undefined);
-      });
+    if (!dispatch) {
+      return true;
     }
-    return wrapInList(listType)(state, dispatch);
+
+    const items: Node[] = [];
+    current.node.forEach((child) => {
+      if (listType === taskList) {
+        items.push(child.type === taskItem ? child : taskItem.create({ checked: false }, child.content));
+      } else {
+        items.push(child.type === listItem ? child : listItem.create(null, child.content));
+      }
+    });
+
+    const next = listType.create(listType === orderedList ? { order: 1 } : null, items);
+    const transaction = state.tr.replaceWith(current.pos, current.pos + current.node.nodeSize, next);
+    transaction.setSelection(TextSelection.near(transaction.doc.resolve(current.pos + 3)));
+    dispatch(transaction.scrollIntoView());
+    return true;
   };
 
   const toggleCodeBlock: Command = (state, dispatch) => {
