@@ -2,6 +2,7 @@ import type { Post } from "@/api/types";
 import { query } from "@/lib/dom";
 import { truncate } from "@/lib/strings";
 import { tagSlug } from "@/lib/tags";
+import { onThemeChange } from "@/ui/theme";
 
 type NodeType = "post" | "tag";
 
@@ -31,6 +32,30 @@ type PointerState =
   | { kind: "node"; node: GraphNode; startX: number; startY: number }
   | { kind: "pan"; startX: number; startY: number; panX: number; panY: number };
 
+interface GraphColors {
+  post: string;
+  tagFill: string;
+  stroke: string;
+  label: string;
+  edge: string;
+  edgeStrong: string;
+  halo: string;
+}
+
+function readGraphColors(): GraphColors {
+  const style = getComputedStyle(document.documentElement);
+  const token = (name: string, fallback: string): string => style.getPropertyValue(name).trim() || fallback;
+  return {
+    post: token("--graph-post", "#0a0a0a"),
+    tagFill: token("--graph-tag-fill", "#ffffff"),
+    stroke: token("--graph-stroke", "#0a0a0a"),
+    label: token("--graph-label", "#0a0a0a"),
+    edge: token("--graph-edge", "rgba(10, 10, 10, 0.14)"),
+    edgeStrong: token("--graph-edge-strong", "rgba(10, 10, 10, 0.48)"),
+    halo: token("--graph-halo", "rgba(10, 10, 10, 0.32)"),
+  };
+}
+
 export interface PostsGraph {
   start(): void;
   stop(): void;
@@ -50,6 +75,7 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
   const adjacency = new Map<GraphNode, Set<GraphNode>>();
   const view: View = { x: 0, y: 0, scale: 1 };
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let colors = readGraphColors();
 
   let width = 1;
   let height = 1;
@@ -216,7 +242,7 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
       context.beginPath();
       context.moveTo(edge.source.x, edge.source.y);
       context.lineTo(edge.target.x, edge.target.y);
-      context.strokeStyle = isHighlighted ? "rgba(10, 10, 10, 0.48)" : "rgba(10, 10, 10, 0.14)";
+      context.strokeStyle = isHighlighted ? colors.edgeStrong : colors.edge;
       context.lineWidth = (isHighlighted ? 1.2 : 0.8) / view.scale;
       context.stroke();
     });
@@ -227,19 +253,19 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
       context.beginPath();
       context.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
       if (node.type === "post") {
-        context.fillStyle = "#0a0a0a";
+        context.fillStyle = colors.post;
         context.fill();
       } else {
-        context.fillStyle = "#ffffff";
+        context.fillStyle = colors.tagFill;
         context.fill();
-        context.strokeStyle = "#0a0a0a";
+        context.strokeStyle = colors.stroke;
         context.lineWidth = 1.4 / view.scale;
         context.stroke();
       }
       if (node === hovered) {
         context.beginPath();
         context.arc(node.x, node.y, node.radius + 4, 0, Math.PI * 2);
-        context.strokeStyle = "rgba(10, 10, 10, 0.32)";
+        context.strokeStyle = colors.halo;
         context.lineWidth = 1 / view.scale;
         context.stroke();
       }
@@ -249,7 +275,7 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
     nodes.forEach((node) => {
       const isDimmed = highlighted !== null && !highlighted.has(node);
       context.globalAlpha = isDimmed ? 0.16 : node.type === "tag" ? 0.72 : 0.94;
-      context.fillStyle = "#0a0a0a";
+      context.fillStyle = colors.label;
       context.font = node.type === "post" ? '500 12px "IBM Plex Sans", sans-serif' : '400 11px "IBM Plex Sans", sans-serif';
       context.textAlign = "center";
       context.textBaseline = "top";
@@ -413,6 +439,13 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
   } else {
     window.addEventListener("resize", resize);
   }
+
+  onThemeChange(() => {
+    colors = readGraphColors();
+    if (!running) {
+      draw();
+    }
+  });
 
   return { start, stop };
 }

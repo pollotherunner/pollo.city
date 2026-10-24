@@ -13,6 +13,7 @@ import "prismjs/components/prism-python";
 import "prismjs/components/prism-sql";
 import "prismjs/components/prism-typescript";
 import { api } from "@/api/client";
+import { currentTheme, onThemeChange } from "@/ui/theme";
 
 interface MarkdownEditorOptions {
   element: HTMLElement;
@@ -26,7 +27,7 @@ const prism = Prism as typeof Prism & { manual: boolean };
 prism.manual = true;
 
 export function createMarkdownEditor(options: MarkdownEditorOptions): Editor {
-  return new Editor({
+  const editor = new Editor({
     el: options.element,
     height: "auto",
     minHeight: options.minHeight,
@@ -60,4 +61,13 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): Editor {
       change: options.onChange,
     },
   });
+
+  const editorRoot = options.element.querySelector<HTMLElement>(".toastui-editor-defaultUI");
+  const syncTheme = (): void => {
+    editorRoot?.classList.toggle("toastui-editor-dark", currentTheme() === "dark");
+  };
+  syncTheme();
+  onThemeChange(syncTheme);
+
+  return editor;
 }
