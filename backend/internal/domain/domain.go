@@ -19,6 +19,13 @@ type Comment struct {
 	Date time.Time `json:"date"`
 }
 
+type About struct {
+	Title     string `json:"title"`
+	Lede      string `json:"lede"`
+	Body      string `json:"body"`
+	UpdatedAt string `json:"updatedAt,omitempty"`
+}
+
 type Draft struct {
 	ID        string    `json:"id"`
 	PostSlug  string    `json:"postSlug,omitempty"`
@@ -48,4 +55,5 @@ type Backup struct {
 	Posts      []Post          `json:"posts"`
 	Comments   []BackupComment `json:"comments"`
 	Drafts     []Draft         `json:"drafts"`
+	About      *About          `json:"about,omitempty"`
 }

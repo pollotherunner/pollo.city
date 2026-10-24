@@ -34,6 +34,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/tags", s.listTags)
 	mux.HandleFunc("GET /api/posts/{slug}/comments", s.listComments)
 	mux.HandleFunc("POST /api/posts/{slug}/comments", s.addComment)
+	mux.HandleFunc("GET /api/about", s.getAbout)
 
 	mux.HandleFunc("POST /api/admin/login", s.login)
 	mux.HandleFunc("POST /api/admin/logout", s.logout)
@@ -51,6 +52,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /api/admin/uploads", s.requireAdmin(http.HandlerFunc(s.uploadImage)))
 	mux.Handle("GET /api/admin/export", s.requireAdmin(http.HandlerFunc(s.exportBackup)))
 	mux.Handle("POST /api/admin/import", s.requireAdmin(http.HandlerFunc(s.importBackup)))
+	mux.Handle("PUT /api/admin/about", s.requireAdmin(http.HandlerFunc(s.updateAbout)))
 
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not found")

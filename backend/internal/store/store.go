@@ -34,6 +34,12 @@ type CommentInput struct {
 	Body string
 }
 
+type AboutInput struct {
+	Title string
+	Lede  string
+	Body  string
+}
+
 type Store interface {
 	Ping(ctx context.Context) error
 	Close() error
@@ -48,6 +54,9 @@ type Store interface {
 
 	ListComments(ctx context.Context, postSlug string) ([]domain.Comment, error)
 	AddComment(ctx context.Context, postSlug string, input CommentInput) (*domain.Comment, error)
+
+	GetAbout(ctx context.Context) (*domain.About, error)
+	UpdateAbout(ctx context.Context, input AboutInput) (*domain.About, error)
 
 	ListDrafts(ctx context.Context) ([]domain.Draft, error)
 	GetDraft(ctx context.Context, id string) (*domain.Draft, error)
