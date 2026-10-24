@@ -110,6 +110,10 @@ func validatePost(w http.ResponseWriter, request postRequest) bool {
 		writeError(w, http.StatusBadRequest, "body is required")
 		return false
 	}
+	if len([]rune(request.Excerpt)) > 500 {
+		writeError(w, http.StatusBadRequest, "excerpt is too long")
+		return false
+	}
 	if len(request.Tags) > 8 {
 		writeError(w, http.StatusBadRequest, "too many tags")
 		return false

@@ -30,6 +30,7 @@ type Draft struct {
 	ID        string    `json:"id"`
 	PostSlug  string    `json:"postSlug,omitempty"`
 	Title     string    `json:"title"`
+	Excerpt   string    `json:"excerpt"`
 	Tags      []string  `json:"tags"`
 	Thumbnail string    `json:"thumbnail"`
 	Body      string    `json:"body"`

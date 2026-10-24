@@ -10,6 +10,7 @@ import (
 type draftRequest struct {
 	PostSlug  string   `json:"postSlug"`
 	Title     string   `json:"title"`
+	Excerpt   string   `json:"excerpt"`
 	Tags      []string `json:"tags"`
 	Thumbnail string   `json:"thumbnail"`
 	Body      string   `json:"body"`
@@ -36,6 +37,7 @@ func (s *Server) createDraft(w http.ResponseWriter, r *http.Request) {
 	draft, err := s.store.CreateDraft(r.Context(), store.DraftInput{
 		PostSlug:  strings.TrimSpace(request.PostSlug),
 		Title:     strings.TrimSpace(request.Title),
+		Excerpt:   strings.TrimSpace(request.Excerpt),
 		Tags:      request.Tags,
 		Thumbnail: strings.TrimSpace(request.Thumbnail),
 		Body:      request.Body,
@@ -58,6 +60,7 @@ func (s *Server) updateDraft(w http.ResponseWriter, r *http.Request) {
 	draft, err := s.store.UpdateDraft(r.Context(), r.PathValue("id"), store.DraftInput{
 		PostSlug:  strings.TrimSpace(request.PostSlug),
 		Title:     strings.TrimSpace(request.Title),
+		Excerpt:   strings.TrimSpace(request.Excerpt),
 		Tags:      request.Tags,
 		Thumbnail: strings.TrimSpace(request.Thumbnail),
 		Body:      request.Body,
@@ -80,6 +83,10 @@ func (s *Server) deleteDraft(w http.ResponseWriter, r *http.Request) {
 func validateDraft(w http.ResponseWriter, request draftRequest) bool {
 	if len([]rune(request.Title)) > 100 {
 		writeError(w, http.StatusBadRequest, "title is too long")
+		return false
+	}
+	if len([]rune(request.Excerpt)) > 500 {
+		writeError(w, http.StatusBadRequest, "excerpt is too long")
 		return false
 	}
 	if len([]rune(request.PostSlug)) > 100 {

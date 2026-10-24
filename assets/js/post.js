@@ -44,7 +44,7 @@
   const body = document.querySelector("#article-body");
 
   document.title = `${post.title} — pollo.city`;
-  document.querySelector('meta[name="description"]').setAttribute("content", post.excerpt);
+  document.querySelector('meta[name="description"]').setAttribute("content", post.excerpt || post.title);
 
   const tagLinks = post.tags.length
     ? `<span class="article-tags">${post.tags.map((tag) => `<a class="article-tag" href="index.html?tag=${encodeURIComponent(window.Pollo.tagSlug(tag))}">${escape(tag)}</a>`).join("")}</span>`
@@ -53,6 +53,7 @@
   metaHost.innerHTML = `<time datetime="${escape(post.date)}">${window.Pollo.formatDate(post.date)}</time>${tagLinks}`;
   title.textContent = post.title;
   deck.textContent = post.excerpt;
+  deck.hidden = !post.excerpt;
   byline.innerHTML = `<span class="byline-author">Por Pollo</span>
     <span>São Paulo, BR</span>
     <span class="meta-icon"><i data-lucide="clock"></i>${minutes} min de leitura</span>`;

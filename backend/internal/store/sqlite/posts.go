@@ -95,9 +95,6 @@ func (s *Store) CreatePost(ctx context.Context, input store.PostInput) (*domain.
 		return nil, err
 	}
 	excerpt := strings.TrimSpace(input.Excerpt)
-	if excerpt == "" {
-		excerpt = excerptFromMarkdown(input.Body)
-	}
 	now := time.Now().UTC()
 	result, err := tx.ExecContext(ctx, `INSERT INTO posts
 		(slug, title, excerpt, body_markdown, thumbnail_url, published_at, created_at, updated_at)
@@ -135,9 +132,6 @@ func (s *Store) UpdatePost(ctx context.Context, slug string, input store.PostInp
 	}
 
 	excerpt := strings.TrimSpace(input.Excerpt)
-	if excerpt == "" {
-		excerpt = excerptFromMarkdown(input.Body)
-	}
 	if _, err := tx.ExecContext(ctx, `UPDATE posts
 		SET title = ?, excerpt = ?, body_markdown = ?, thumbnail_url = ?, updated_at = ?
 		WHERE id = ?`,

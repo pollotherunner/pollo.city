@@ -1366,17 +1366,21 @@ body.graph-mode .graph-view {
   padding-top: clamp(38px, 6vw, 58px);
 }
 
-.about-field {
+.editor-field {
   margin-top: 24px;
 }
 
-.about-field .field-label {
+.editor-field .field-label {
   display: block;
   margin-bottom: 8px;
 }
 
 .about-lede-input {
   min-height: 112px;
+}
+
+.editor-excerpt-input {
+  min-height: 84px;
 }
 
 .comments-section {

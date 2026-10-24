@@ -58,7 +58,7 @@
             ${tagLinks}
           </div>
           <h3 class="post-title"><a class="post-title-link" href="post.html?slug=${encodeURIComponent(post.slug)}">${escape(post.title)}</a></h3>
-          <p class="post-excerpt">${escape(post.excerpt)}</p>
+          ${post.excerpt ? `<p class="post-excerpt">${escape(post.excerpt)}</p>` : ""}
         </div>
         <div class="post-aside">
           <span class="post-time"><i data-lucide="clock"></i>${minutes} min</span>

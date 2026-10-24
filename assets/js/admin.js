@@ -44,6 +44,7 @@
   const publishButton = document.querySelector("#publish-button");
   const saveState = document.querySelector("#editor-save-state");
   const titleField = document.querySelector("#editor-title");
+  const excerptField = document.querySelector("#editor-excerpt");
   const tagChips = document.querySelector("#editor-tag-chips");
   const tagInput = document.querySelector("#tag-input");
   const tagSuggestions = document.querySelector("#tag-suggestions");
@@ -340,6 +341,7 @@
     const pendingTags = tagInput.value.split(",").map((value) => value.trim()).filter(Boolean);
     return {
       title: titleField.value.trim(),
+      excerpt: excerptField.value.trim(),
       tags: window.Pollo.normalizeTags([...state.tags, ...pendingTags]),
       thumbnail: state.thumbnail,
       body: editorMarkdown(),
@@ -347,7 +349,7 @@
   }
 
   function hasEditorData(data) {
-    return Boolean(data.title || data.body || data.thumbnail);
+    return Boolean(data.title || data.excerpt || data.body || data.thumbnail);
   }
 
   async function persistDraft(announce) {
@@ -484,6 +486,7 @@
     state.tags = source ? window.Pollo.normalizeTags(source.tags) : [];
 
     titleField.value = source ? source.title || "" : "";
+    excerptField.value = source ? source.excerpt || "" : "";
     tagInput.value = "";
     renderTagEditor();
     setCover(source ? source.thumbnail || "" : "");
@@ -683,6 +686,7 @@
   publishButton.addEventListener("click", publishArticle);
 
   titleField.addEventListener("input", markChanged);
+  excerptField.addEventListener("input", markChanged);
 
   tagInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === ",") {

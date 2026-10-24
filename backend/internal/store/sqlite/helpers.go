@@ -90,18 +90,6 @@ func normalizeTags(values []string) []normalizedTag {
 	return tags
 }
 
-func excerptFromMarkdown(body string) string {
-	text := regexp.MustCompile("```[\\s\\S]*?```").ReplaceAllString(body, " ")
-	text = regexp.MustCompile("[#>*_`\\[\\]()]").ReplaceAllString(text, "")
-	text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
-	text = strings.TrimSpace(text)
-	if len([]rune(text)) <= 150 {
-		return text
-	}
-	runes := []rune(text)
-	return strings.TrimSpace(string(runes[:150])) + "…"
-}
-
 func randomID(bytesCount int) (string, error) {
 	buffer := make([]byte, bytesCount)
 	if _, err := rand.Read(buffer); err != nil {

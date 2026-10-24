@@ -63,9 +63,10 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	}
 
 	created, err := instance.CreatePost(ctx, store.PostInput{
-		Title: "Ação e Código",
-		Tags:  []string{"Ação", "Código", "Ação"},
-		Body:  "## Teste\n\nConteúdo do artigo.",
+		Title:   "Ação e Código",
+		Excerpt: "Resumo curto.",
+		Tags:    []string{"Ação", "Código", "Ação"},
+		Body:    "## Teste\n\nConteúdo do artigo.",
 	})
 	if err != nil {
 		t.Fatalf("create post: %v", err)
@@ -76,8 +77,22 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	if len(created.Tags) != 2 {
 		t.Fatalf("expected 2 deduplicated tags, got %v", created.Tags)
 	}
-	if created.Excerpt != "Teste Conteúdo do artigo." {
+	if created.Excerpt != "Resumo curto." {
 		t.Fatalf("unexpected excerpt: %q", created.Excerpt)
+	}
+
+	withoutExcerpt, err := instance.CreatePost(ctx, store.PostInput{
+		Title: "Sem resumo",
+		Body:  "Conteúdo sem resumo.",
+	})
+	if err != nil {
+		t.Fatalf("create post without excerpt: %v", err)
+	}
+	if withoutExcerpt.Excerpt != "" {
+		t.Fatalf("expected empty excerpt, got %q", withoutExcerpt.Excerpt)
+	}
+	if err := instance.DeletePost(ctx, withoutExcerpt.Slug); err != nil {
+		t.Fatalf("delete post without excerpt: %v", err)
 	}
 
 	updated, err := instance.UpdatePost(ctx, created.Slug, store.PostInput{
@@ -113,6 +128,7 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	draft, err := instance.CreateDraft(ctx, store.DraftInput{
 		PostSlug: created.Slug,
 		Title:    "Rascunho",
+		Excerpt:  "Resumo do rascunho.",
 		Tags:     []string{"Teste"},
 		Body:     "Rascunho de teste.",
 	})
@@ -121,6 +137,9 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	}
 	if draft.PostSlug != created.Slug {
 		t.Fatalf("unexpected draft post slug: %s", draft.PostSlug)
+	}
+	if draft.Excerpt != "Resumo do rascunho." {
+		t.Fatalf("unexpected draft excerpt: %q", draft.Excerpt)
 	}
 	draft, err = instance.UpdateDraft(ctx, draft.ID, store.DraftInput{
 		Title: "Rascunho atualizado",
