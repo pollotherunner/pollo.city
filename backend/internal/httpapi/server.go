@@ -55,6 +55,17 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not found")
 	})
+
+	mux.HandleFunc("GET /{$}", s.page("index.html"))
+	mux.HandleFunc("GET /index.html", s.page("index.html"))
+	mux.HandleFunc("GET /post.html", s.page("post.html"))
+	mux.HandleFunc("GET /arquivo.html", s.page("arquivo.html"))
+	mux.HandleFunc("GET /sobre.html", s.page("sobre.html"))
+	mux.HandleFunc("GET /favicon.svg", s.page("favicon.svg"))
+	mux.HandleFunc("GET /admin", s.page("admin.html"))
+	mux.HandleFunc("GET /admin/{$}", s.permanentRedirect("/admin"))
+	mux.HandleFunc("GET /admin.html", s.permanentRedirect("/admin"))
+
 	mux.Handle("/", s.staticHandler())
 
 	return s.middleware(mux)
