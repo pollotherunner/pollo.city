@@ -300,9 +300,9 @@
     canvas.addEventListener("pointerup", (event) => {
       if (pointer && pointer.node && !moved) {
         if (pointer.node.type === "post") {
-          window.location.href = `post.html?slug=${encodeURIComponent(pointer.node.slug)}`;
+          window.location.href = `/post/${encodeURIComponent(pointer.node.slug)}`;
         } else {
-          window.location.href = `index.html?tag=${encodeURIComponent(pointer.node.slug)}`;
+          window.location.href = `/?tag=${encodeURIComponent(pointer.node.slug)}`;
         }
       }
       pointer = null;

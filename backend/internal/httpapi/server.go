@@ -59,14 +59,20 @@ func (s *Server) Handler() http.Handler {
 	})
 
 	mux.HandleFunc("GET /{$}", s.page("index.html"))
-	mux.HandleFunc("GET /index.html", s.page("index.html"))
-	mux.HandleFunc("GET /post.html", s.page("post.html"))
-	mux.HandleFunc("GET /arquivo.html", s.page("arquivo.html"))
-	mux.HandleFunc("GET /sobre.html", s.page("sobre.html"))
+	mux.HandleFunc("GET /arquivo", s.page("arquivo.html"))
+	mux.HandleFunc("GET /sobre", s.page("sobre.html"))
+	mux.HandleFunc("GET /post/{slug}", s.page("post.html"))
+	mux.HandleFunc("GET /post", s.permanentRedirect("/"))
+	mux.HandleFunc("GET /post/{$}", s.permanentRedirect("/"))
 	mux.HandleFunc("GET /favicon.svg", s.page("favicon.svg"))
 	mux.HandleFunc("GET /admin", s.page("admin.html"))
 	mux.HandleFunc("GET /admin/{$}", s.permanentRedirect("/admin"))
+
+	mux.HandleFunc("GET /index.html", s.permanentRedirect("/"))
+	mux.HandleFunc("GET /arquivo.html", s.permanentRedirect("/arquivo"))
+	mux.HandleFunc("GET /sobre.html", s.permanentRedirect("/sobre"))
 	mux.HandleFunc("GET /admin.html", s.permanentRedirect("/admin"))
+	mux.HandleFunc("GET /post.html", s.legacyPostRedirect)
 
 	mux.Handle("/", s.staticHandler())
 

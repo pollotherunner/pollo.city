@@ -1,6 +1,6 @@
 (function () {
   const API_BASE = "/api";
-  const DEFAULT_THUMBNAIL = "assets/img/thumb-default.svg";
+  const DEFAULT_THUMBNAIL = "/assets/img/thumb-default.svg";
   const MONTHS = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
   let postsCache = null;
   let tagsCache = null;

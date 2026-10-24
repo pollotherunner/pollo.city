@@ -27,10 +27,10 @@
   function renderTagFilter() {
     tagFilter.hidden = !tags.length;
     tagFilter.innerHTML = [
-      `<a class="tag-filter-link${activeTag ? "" : " is-active"}" href="index.html"${activeTag ? "" : ' aria-current="true"'}>Todas</a>`,
+      `<a class="tag-filter-link${activeTag ? "" : " is-active"}" href="/"${activeTag ? "" : ' aria-current="true"'}>Todas</a>`,
       ...tags.map((tag) => {
         const active = tag.slug === activeTag;
-        return `<a class="tag-filter-link${active ? " is-active" : ""}" href="index.html?tag=${encodeURIComponent(tag.slug)}"${active ? ' aria-current="true"' : ""}>${escape(tag.name)}</a>`;
+        return `<a class="tag-filter-link${active ? " is-active" : ""}" href="/?tag=${encodeURIComponent(tag.slug)}"${active ? ' aria-current="true"' : ""}>${escape(tag.name)}</a>`;
       }),
     ].join("");
   }
@@ -45,7 +45,7 @@
       const minutes = window.Pollo.readingMinutes(post.body);
       const thumbnail = post.thumbnail || window.Pollo.defaultThumbnail;
       const tagLinks = post.tags.length
-        ? `<div class="post-tags">${post.tags.map((tag) => `<a class="post-tag" href="index.html?tag=${encodeURIComponent(window.Pollo.tagSlug(tag))}">${escape(tag)}</a>`).join("")}</div>`
+        ? `<div class="post-tags">${post.tags.map((tag) => `<a class="post-tag" href="/?tag=${encodeURIComponent(window.Pollo.tagSlug(tag))}">${escape(tag)}</a>`).join("")}</div>`
         : "";
 
       return `<article class="post-row">
@@ -57,7 +57,7 @@
             <time datetime="${escape(post.date)}">${window.Pollo.formatDate(post.date)}</time>
             ${tagLinks}
           </div>
-          <h3 class="post-title"><a class="post-title-link" href="post.html?slug=${encodeURIComponent(post.slug)}">${escape(post.title)}</a></h3>
+          <h3 class="post-title"><a class="post-title-link" href="/post/${encodeURIComponent(post.slug)}">${escape(post.title)}</a></h3>
           ${post.excerpt ? `<p class="post-excerpt">${escape(post.excerpt)}</p>` : ""}
         </div>
         <div class="post-aside">

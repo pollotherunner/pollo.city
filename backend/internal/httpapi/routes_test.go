@@ -19,6 +19,9 @@ import (
 func TestPageRoutes(t *testing.T) {
 	pagesDir := t.TempDir()
 	writePage(t, pagesDir, "index.html", "index page")
+	writePage(t, pagesDir, "arquivo.html", "archive page")
+	writePage(t, pagesDir, "sobre.html", "about page")
+	writePage(t, pagesDir, "post.html", "post page")
 	writePage(t, pagesDir, "admin.html", "admin page")
 
 	database, err := sqlite.New(filepath.Join(t.TempDir(), "pollo.db"))
@@ -47,7 +50,17 @@ func TestPageRoutes(t *testing.T) {
 		bodyContains string
 	}{
 		{name: "root", method: http.MethodGet, target: "/", status: http.StatusOK, bodyContains: "index page"},
-		{name: "index page", method: http.MethodGet, target: "/index.html", status: http.StatusMovedPermanently, location: "./"},
+		{name: "index legacy html", method: http.MethodGet, target: "/index.html", status: http.StatusMovedPermanently, location: "/"},
+		{name: "index legacy html with query", method: http.MethodGet, target: "/index.html?tag=go", status: http.StatusMovedPermanently, location: "/?tag=go"},
+		{name: "archive clean route", method: http.MethodGet, target: "/arquivo", status: http.StatusOK, bodyContains: "archive page"},
+		{name: "archive legacy html", method: http.MethodGet, target: "/arquivo.html", status: http.StatusMovedPermanently, location: "/arquivo"},
+		{name: "about clean route", method: http.MethodGet, target: "/sobre", status: http.StatusOK, bodyContains: "about page"},
+		{name: "about legacy html", method: http.MethodGet, target: "/sobre.html", status: http.StatusMovedPermanently, location: "/sobre"},
+		{name: "post clean route", method: http.MethodGet, target: "/post/meu-artigo", status: http.StatusOK, bodyContains: "post page"},
+		{name: "post legacy html", method: http.MethodGet, target: "/post.html?slug=meu-artigo", status: http.StatusMovedPermanently, location: "/post/meu-artigo"},
+		{name: "post legacy html without slug", method: http.MethodGet, target: "/post.html", status: http.StatusMovedPermanently, location: "/"},
+		{name: "post route without slug", method: http.MethodGet, target: "/post", status: http.StatusMovedPermanently, location: "/"},
+		{name: "post route trailing slash", method: http.MethodGet, target: "/post/", status: http.StatusMovedPermanently, location: "/"},
 		{name: "admin clean route", method: http.MethodGet, target: "/admin", status: http.StatusOK, bodyContains: "admin page"},
 		{name: "admin clean route with query", method: http.MethodGet, target: "/admin?tab=posts", status: http.StatusOK, bodyContains: "admin page"},
 		{name: "admin trailing slash", method: http.MethodGet, target: "/admin/", status: http.StatusMovedPermanently, location: "/admin"},
