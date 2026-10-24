@@ -49,7 +49,7 @@ export default defineConfig({
   build: {
     outDir: "../dist",
     emptyOutDir: true,
-    chunkSizeWarningLimit: 600,
+    chunkSizeWarningLimit: 700,
     rollupOptions: {
       input: {
         home: fileURLToPath(new URL("./frontend/index.html", import.meta.url)),
@@ -60,9 +60,6 @@ export default defineConfig({
       },
       output: {
         manualChunks(id) {
-          if (id.includes("node_modules/@toast-ui/editor-plugin")) return "editor-plugin";
-          if (id.includes("node_modules/@toast-ui/editor")) return "editor-core";
-          if (id.includes("node_modules/prismjs")) return "editor-prism";
           if (id.includes("node_modules/lucide")) return "icons";
           if (id.includes("node_modules/marked") || id.includes("node_modules/dompurify") || id.includes("node_modules/highlight.js")) {
             return "markdown-vendor";
