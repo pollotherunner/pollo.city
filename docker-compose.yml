@@ -2,6 +2,7 @@ name: pollo-city
 
 services:
   app:
+    image: ${APP_IMAGE:-ghcr.io/pollotherunner/pollo-city:latest}
     build:
       context: .
       dockerfile: backend/Dockerfile
