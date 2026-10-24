@@ -1191,6 +1191,12 @@ body.graph-mode .graph-view {
   font-style: italic;
 }
 
+.prose ins,
+.prose u {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .prose a {
   text-decoration: underline;
   text-decoration-thickness: 1px;

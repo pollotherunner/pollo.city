@@ -21,12 +21,13 @@ describe("markdown", () => {
     expect(container.innerHTML).not.toContain("style=");
   });
 
-  it("renders task lists, strikethrough and code fences", () => {
-    const container = render("- [ ] todo\n- [x] done\n\n~~riscado~~\n\n```js\nconst x = 1;\n```\n");
+  it("renders task lists, strikethrough, underline and code fences", () => {
+    const container = render("- [ ] todo\n- [x] done\n\n~~riscado~~\n\n++sublinhado++\n\n```js\nconst x = 1;\n```\n");
 
     expect(container.querySelectorAll("input[type=checkbox]")).toHaveLength(2);
     expect(container.querySelector("li.task-list-item")).not.toBeNull();
     expect(container.querySelector("del")?.textContent).toBe("riscado");
+    expect(container.querySelector("ins")?.textContent).toBe("sublinhado");
     expect(container.querySelector("pre code")?.className).toContain("language-js");
     expect(container.querySelector("pre code")?.className).toContain("hljs");
   });
