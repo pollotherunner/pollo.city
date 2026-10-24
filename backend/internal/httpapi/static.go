@@ -7,16 +7,6 @@ import (
 	"strings"
 )
 
-var publicPages = map[string]string{
-	"/":             "index.html",
-	"/index.html":   "index.html",
-	"/post.html":    "post.html",
-	"/arquivo.html": "arquivo.html",
-	"/sobre.html":   "sobre.html",
-	"/admin":        "admin.html",
-	"/favicon.svg":  "favicon.svg",
-}
-
 func (s *Server) staticHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
@@ -24,20 +14,7 @@ func (s *Server) staticHandler() http.Handler {
 			return
 		}
 
-		if r.URL.Path == "/admin/" || r.URL.Path == "/admin.html" {
-			target := "/admin"
-			if r.URL.RawQuery != "" {
-				target += "?" + r.URL.RawQuery
-			}
-			http.Redirect(w, r, target, http.StatusMovedPermanently)
-			return
-		}
-
 		requestPath := path.Clean("/" + r.URL.Path)
-		if page, ok := publicPages[requestPath]; ok {
-			s.servePublicFile(w, r, page, false)
-			return
-		}
 		if strings.HasPrefix(requestPath, "/assets/") {
 			s.servePublicFile(w, r, strings.TrimPrefix(requestPath, "/"), true)
 			return
@@ -53,6 +30,22 @@ func (s *Server) staticHandler() http.Handler {
 		}
 		http.NotFound(w, r)
 	})
+}
+
+func (s *Server) page(relative string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s.servePublicFile(w, r, relative, false)
+	}
+}
+
+func (s *Server) permanentRedirect(target string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		location := target
+		if r.URL.RawQuery != "" {
+			location += "?" + r.URL.RawQuery
+		}
+		http.Redirect(w, r, location, http.StatusMovedPermanently)
+	}
 }
 
 func (s *Server) servePublicFile(w http.ResponseWriter, r *http.Request, relative string, cacheable bool) {
