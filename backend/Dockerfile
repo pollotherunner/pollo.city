@@ -1,4 +1,12 @@
-FROM golang:1.27-alpine AS build
+FROM node:24-alpine AS frontend
+
+WORKDIR /src
+COPY package.json package-lock.json tsconfig.json vite.config.ts vitest.config.ts ./
+RUN npm ci
+COPY frontend ./frontend
+RUN npm run build
+
+FROM golang:1.27-alpine AS backend
 
 WORKDIR /src/backend
 COPY backend/go.mod backend/go.sum ./
@@ -13,9 +21,8 @@ RUN apk add --no-cache ca-certificates tzdata \
     && adduser -S -G app app
 
 WORKDIR /app
-COPY --from=build /out/pollo /app/pollo
-COPY index.html arquivo.html sobre.html post.html admin.html favicon.svg /app/public/
-COPY assets /app/public/assets
+COPY --from=backend /out/pollo /app/pollo
+COPY --from=frontend /src/dist /app/public
 RUN mkdir -p /data/uploads && chown -R app:app /data
 
 USER app

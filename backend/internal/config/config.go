@@ -55,7 +55,7 @@ func Load() (Config, error) {
 		HTTPAddr:       env("HTTP_ADDR", ":8080"),
 		DatabasePath:   env("DATABASE_PATH", "data/pollo.db"),
 		UploadsDir:     env("UPLOADS_DIR", "data/uploads"),
-		PublicDir:      env("PUBLIC_DIR", "."),
+		PublicDir:      env("PUBLIC_DIR", "dist"),
 		AdminPassword:  strings.TrimSpace(os.Getenv("ADMIN_PASSWORD")),
 		SessionTTL:     sessionTTL,
 		CookieSecure:   cookieSecure,

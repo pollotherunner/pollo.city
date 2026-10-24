@@ -1,0 +1,32 @@
+import { describe, expect, it } from "vitest";
+import type { PostInput } from "@/api/types";
+import { toDraftInput } from "./editor-payload";
+
+describe("editor payloads", () => {
+  it("adds postSlug only to draft payloads", () => {
+    const content: PostInput = {
+      title: "Título",
+      excerpt: "Resumo",
+      tags: ["Teste"],
+      thumbnail: "/uploads/image.png",
+      body: "Conteúdo",
+    };
+
+    expect(toDraftInput(content, "meu-artigo")).toEqual({
+      ...content,
+      postSlug: "meu-artigo",
+    });
+    expect("postSlug" in content).toBe(false);
+  });
+
+  it("uses an empty post slug for new drafts", () => {
+    const content: PostInput = {
+      title: "Título",
+      excerpt: "",
+      tags: [],
+      thumbnail: "",
+      body: "Conteúdo",
+    };
+    expect(toDraftInput(content, null).postSlug).toBe("");
+  });
+});
