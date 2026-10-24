@@ -4,11 +4,13 @@ import { addListNodes } from "prosemirror-schema-list";
 import { tableNodes } from "prosemirror-tables";
 
 const strike: MarkSpec = {
+  inclusive: false,
   parseDOM: [{ tag: "s" }, { tag: "del" }, { style: "text-decoration=line-through" }],
-  toDOM: () => ["s", 0],
+  toDOM: () => ["del", 0],
 };
 
 const underline: MarkSpec = {
+  inclusive: false,
   parseDOM: [{ tag: "u" }, { tag: "ins" }],
   toDOM: () => ["u", 0],
 };
@@ -86,6 +88,11 @@ for (const [name, spec] of Object.entries(tableSpec)) {
   nodes = nodes.addToEnd(name, spec);
 }
 
-const marks = basicSchema.spec.marks.addToEnd("strike", strike).addToEnd("underline", underline);
+const marks = basicSchema.spec.marks
+  .update("em", { ...basicSchema.spec.marks.get("em")!, inclusive: false })
+  .update("strong", { ...basicSchema.spec.marks.get("strong")!, inclusive: false })
+  .update("code", { ...basicSchema.spec.marks.get("code")!, inclusive: false })
+  .addToEnd("strike", strike)
+  .addToEnd("underline", underline);
 
 export const editorSchema = new Schema({ nodes, marks });
