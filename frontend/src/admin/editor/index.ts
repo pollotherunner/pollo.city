@@ -249,6 +249,16 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
     if (sourceMode) {
       return;
     }
+
+    try {
+      if (typeof fileInput.showPicker === "function") {
+        fileInput.showPicker();
+        return;
+      }
+    } catch {
+      // Fall back to click when the picker API is unavailable or blocked.
+    }
+
     fileInput.click();
   };
 

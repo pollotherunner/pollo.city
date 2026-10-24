@@ -287,9 +287,18 @@ export function createToolbar(options: ToolbarOptions): EditorToolbar {
   });
 
   dom.addEventListener("mousedown", (event) => {
-    if (event.target instanceof Element && event.target.closest("button")) {
-      event.preventDefault();
+    if (!(event.target instanceof Element)) {
+      return;
     }
+    const element = event.target.closest<HTMLButtonElement>("button");
+    if (!element) {
+      return;
+    }
+    // Keep native activation for actions that open the OS file picker or dialogs.
+    if (element.dataset.action === "image" || element.dataset.action === "image-url" || element.dataset.action === "link") {
+      return;
+    }
+    event.preventDefault();
   });
 
   dom.addEventListener("click", (event) => {
