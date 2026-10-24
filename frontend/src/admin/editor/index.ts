@@ -48,6 +48,29 @@ function findLinkMark(state: EditorState): Mark | null {
   return found;
 }
 
+function linkRangeAt(state: EditorState): { from: number; to: number; mark: Mark | null } {
+  const { from, to, $from } = state.selection;
+  if (from !== to) {
+    return { from, to, mark: findLinkMark(state) };
+  }
+
+  const parent = $from.parent;
+  let position = $from.start();
+  let found: { from: number; to: number; mark: Mark } | null = null;
+
+  parent.forEach((child) => {
+    const start = position;
+    const end = position + child.nodeSize;
+    const mark = linkType.isInSet(child.marks);
+    if (mark && $from.pos >= start && $from.pos <= end) {
+      found = { from: start, to: end, mark };
+    }
+    position = end;
+  });
+
+  return found ?? { from, to, mark: null };
+}
+
 export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEditor {
   const host = options.element;
   const ariaLabel = host.getAttribute("aria-label") ?? "Conteúdo";
@@ -183,8 +206,7 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
       return;
     }
 
-    const { from, to } = view.state.selection;
-    const current = findLinkMark(view.state);
+    const { from, to, mark: current } = linkRangeAt(view.state);
     const anchor = dialogAnchor();
 
     const promptOptions = {

@@ -59,6 +59,8 @@ describe("editor markdown", () => {
     expect(list.childCount).toBe(2);
     expect(list.child(0)?.attrs.checked).toBe(false);
     expect(list.child(1)?.attrs.checked).toBe(true);
+    expect(list.child(0)?.textContent).toBe("todo");
+    expect(list.child(1)?.textContent).toBe("done");
 
     const output = serializeMarkdown(parseMarkdown("- [ ] todo\n- [x] done\n"));
     expect(output).toContain("- [ ] todo");

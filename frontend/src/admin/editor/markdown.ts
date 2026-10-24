@@ -189,9 +189,16 @@ const customHandlers: Record<string, TokenHandler> = {
   html_block: (_state, token) => {
     throw new UnsupportedMarkdownError(`HTML block não suportado: ${token.content.slice(0, 80)}`);
   },
-  html_inline: (state, token) => {
+  html_inline: (state, token, allTokens, index) => {
     const content = token.content.trim();
-    if (!content || content.includes("task-list-item-checkbox")) {
+    if (content.includes("task-list-item-checkbox")) {
+      const next = allTokens[index + 1];
+      if (next?.type === "text") {
+        next.content = next.content.replace(/^\s+/, "");
+      }
+      return;
+    }
+    if (!content) {
       return;
     }
     if (/^<br\s*\/?>$/i.test(content)) {
