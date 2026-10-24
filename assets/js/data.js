@@ -4,6 +4,7 @@
   const MONTHS = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
   let postsCache = null;
   let tagsCache = null;
+  let aboutCache = null;
 
   class APIError extends Error {
     constructor(message, status) {
@@ -47,6 +48,7 @@
   function invalidateCache() {
     postsCache = null;
     tagsCache = null;
+    aboutCache = null;
   }
 
   async function getPosts(force = false) {
@@ -66,6 +68,19 @@
     const payload = await request("/tags");
     tagsCache = Array.isArray(payload.tags) ? payload.tags : [];
     return tagsCache;
+  }
+
+  async function getAbout(force = false) {
+    if (!force && aboutCache) return aboutCache;
+    const payload = await request("/about");
+    aboutCache = payload.about;
+    return aboutCache;
+  }
+
+  async function updateAbout(data) {
+    const payload = await request("/admin/about", { method: "PUT", body: data });
+    aboutCache = payload.about;
+    return aboutCache;
   }
 
   async function getComments(slug) {
@@ -256,6 +271,8 @@
     getPosts,
     getPost,
     getTags,
+    getAbout,
+    updateAbout,
     getComments,
     addComment,
     login,

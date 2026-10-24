@@ -25,6 +25,43 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 		t.Fatalf("expected an empty database, got %d posts", len(initial))
 	}
 
+	about, err := instance.GetAbout(ctx)
+	if err != nil {
+		t.Fatalf("get default about page: %v", err)
+	}
+	if about.Title != "Sobre" || about.Body != "" {
+		t.Fatalf("unexpected default about page: %+v", about)
+	}
+	about, err = instance.UpdateAbout(ctx, store.AboutInput{
+		Title: "Sobre mim",
+		Lede:  "Uma introdução.",
+		Body:  "## Conteúdo\n\nTexto da página sobre.",
+	})
+	if err != nil {
+		t.Fatalf("update about page: %v", err)
+	}
+	if about.Title != "Sobre mim" || about.UpdatedAt == "" {
+		t.Fatalf("unexpected updated about page: %+v", about)
+	}
+
+	backup, err := instance.Export(ctx)
+	if err != nil {
+		t.Fatalf("export backup: %v", err)
+	}
+	if backup.About == nil || backup.About.Title != "Sobre mim" {
+		t.Fatalf("about page missing from backup: %+v", backup.About)
+	}
+	if err := instance.Import(ctx, backup); err != nil {
+		t.Fatalf("import backup: %v", err)
+	}
+	about, err = instance.GetAbout(ctx)
+	if err != nil {
+		t.Fatalf("get imported about page: %v", err)
+	}
+	if about.Body != "## Conteúdo\n\nTexto da página sobre." {
+		t.Fatalf("unexpected imported about page: %+v", about)
+	}
+
 	created, err := instance.CreatePost(ctx, store.PostInput{
 		Title: "Ação e Código",
 		Tags:  []string{"Ação", "Código", "Ação"},

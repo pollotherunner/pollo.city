@@ -1361,6 +1361,24 @@ body.graph-mode .graph-view {
   letter-spacing: -0.01em;
 }
 
+.page-body {
+  width: 100%;
+  padding-top: clamp(38px, 6vw, 58px);
+}
+
+.about-field {
+  margin-top: 24px;
+}
+
+.about-field .field-label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.about-lede-input {
+  min-height: 112px;
+}
+
 .comments-section {
   margin-top: clamp(62px, 9vw, 100px);
   border-top: 1px solid var(--line);

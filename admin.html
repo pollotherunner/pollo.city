@@ -50,6 +50,7 @@
         </header>
 
         <div class="admin-tools">
+          <button class="text-button" id="edit-about-button" type="button"><i data-lucide="file-text"></i>Editar Sobre</button>
           <button class="text-button" id="export-button" type="button"><i data-lucide="download"></i>Exportar dados</button>
           <button class="text-button" id="import-button" type="button"><i data-lucide="upload"></i>Importar dados</button>
           <input id="import-input" type="file" accept="application/json,.json" hidden>
@@ -113,6 +114,41 @@
           <footer class="editor-stats">
             <span id="editor-word-count">0 palavras</span>
             <span id="editor-read-time">1 min de leitura</span>
+          </footer>
+        </div>
+      </div>
+
+      <div class="editor-view" id="about-view" hidden>
+        <div class="editor-bar">
+          <div class="shell editor-bar-inner">
+            <button class="text-button" id="about-back" type="button"><i data-lucide="arrow-left"></i>Painel</button>
+            <span class="editor-save-state" id="about-save-state" role="status" aria-live="polite"></span>
+            <div class="editor-bar-actions">
+              <a class="text-button" href="sobre.html" target="_blank" rel="noopener">Ver página <i data-lucide="arrow-up-right"></i></a>
+              <button class="button" id="save-about-button" type="button">Salvar sobre <i data-lucide="check"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="editor-page">
+          <h1 class="sr-only">Editar página Sobre</h1>
+
+          <label class="sr-only" for="about-title">Título da página</label>
+          <input class="editor-title-input" id="about-title" type="text" maxlength="100" placeholder="Título da página">
+
+          <div class="about-field">
+            <label class="field-label" for="about-lede">Introdução</label>
+            <textarea class="input about-lede-input" id="about-lede" maxlength="500" rows="3" placeholder="Uma introdução curta."></textarea>
+          </div>
+
+          <div class="about-field">
+            <p class="field-label">Conteúdo</p>
+            <div class="markdown-editor" id="about-editor" aria-label="Conteúdo da página Sobre"></div>
+          </div>
+
+          <footer class="editor-stats">
+            <span id="about-word-count">0 palavras</span>
+            <span id="about-read-time">1 min de leitura</span>
           </footer>
         </div>
       </div>

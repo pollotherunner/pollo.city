@@ -13,6 +13,8 @@
     publishing: false,
     autosaveTimer: null,
     saveChain: Promise.resolve(),
+    aboutEditorInstance: null,
+    syncingAboutEditor: false,
   };
 
   const authView = document.querySelector("#auth-view");
@@ -33,6 +35,7 @@
   const adminFeedbackMessage = adminFeedback.querySelector(".feedback-message");
   const adminFeedbackMark = adminFeedback.querySelector(".feedback-mark");
   const publishedLink = document.querySelector("#published-link");
+  const editAboutButton = document.querySelector("#edit-about-button");
   const exportButton = document.querySelector("#export-button");
   const importButton = document.querySelector("#import-button");
   const importInput = document.querySelector("#import-input");
@@ -51,6 +54,15 @@
   const markdownEditorHost = document.querySelector("#markdown-editor");
   const wordCount = document.querySelector("#editor-word-count");
   const readTime = document.querySelector("#editor-read-time");
+  const aboutView = document.querySelector("#about-view");
+  const aboutBack = document.querySelector("#about-back");
+  const saveAboutButton = document.querySelector("#save-about-button");
+  const aboutSaveState = document.querySelector("#about-save-state");
+  const aboutTitle = document.querySelector("#about-title");
+  const aboutLede = document.querySelector("#about-lede");
+  const aboutEditorHost = document.querySelector("#about-editor");
+  const aboutWordCount = document.querySelector("#about-word-count");
+  const aboutReadTime = document.querySelector("#about-read-time");
   const escape = window.Pollo.escapeHTML;
 
   function setSaveState(message, isError) {
@@ -185,6 +197,145 @@
     }, 900);
   }
 
+  function setAboutSaveState(message, isError) {
+    aboutSaveState.textContent = message;
+    aboutSaveState.classList.toggle("is-error", Boolean(isError));
+  }
+
+  function aboutEditorMarkdown() {
+    return state.aboutEditorInstance ? state.aboutEditorInstance.getMarkdown().trim() : "";
+  }
+
+  function updateAboutStats() {
+    const markdown = aboutEditorMarkdown();
+    const words = editorWords(markdown);
+    aboutWordCount.textContent = `${words} ${words === 1 ? "palavra" : "palavras"}`;
+    aboutReadTime.textContent = `${window.Pollo.readingMinutes(markdown)} min de leitura`;
+  }
+
+  function ensureAboutEditor() {
+    if (state.aboutEditorInstance) return true;
+    if (!window.toastui || !window.toastui.Editor) {
+      setAboutSaveState("Não foi possível carregar o editor.", true);
+      return false;
+    }
+
+    const codeSyntaxHighlight = window.toastui.Editor.plugin ? window.toastui.Editor.plugin.codeSyntaxHighlight : null;
+
+    try {
+      state.aboutEditorInstance = new window.toastui.Editor({
+        el: aboutEditorHost,
+        height: "auto",
+        minHeight: "460px",
+        initialEditType: "wysiwyg",
+        previewStyle: "tab",
+        hideModeSwitch: true,
+        usageStatistics: false,
+        autofocus: false,
+        language: "pt-BR",
+        placeholder: "Escreva o conteúdo da página Sobre",
+        toolbarItems: [
+          ["heading", "bold", "italic", "strike"],
+          ["hr", "quote"],
+          ["ul", "ol", "task", "indent", "outdent"],
+          ["table", "image", "link"],
+          ["code", "codeblock"],
+        ],
+        plugins: codeSyntaxHighlight ? [codeSyntaxHighlight] : [],
+        hooks: {
+          addImageBlobHook: async (blob, callback) => {
+            try {
+              const url = await window.Pollo.uploadImage(blob);
+              callback(url, blob.name || "imagem");
+              setAboutSaveState("Alterações não salvas");
+            } catch (error) {
+              setAboutSaveState("Não foi possível carregar a imagem.", true);
+            }
+          },
+        },
+        events: {
+          change: () => {
+            if (state.syncingAboutEditor) return;
+            updateAboutStats();
+            setAboutSaveState("Alterações não salvas");
+          },
+        },
+      });
+      return true;
+    } catch (error) {
+      setAboutSaveState("Não foi possível carregar o editor.", true);
+      return false;
+    }
+  }
+
+  async function openAboutEditor() {
+    hideAdminFeedback();
+    try {
+      const about = await window.Pollo.getAbout(true);
+      aboutTitle.value = about.title || "Sobre";
+      aboutLede.value = about.lede || "";
+
+      adminView.classList.add("is-editing");
+      dashboardView.hidden = true;
+      editorView.hidden = true;
+      aboutView.hidden = false;
+      document.title = "Sobre — Admin — pollo.city";
+
+      state.syncingAboutEditor = true;
+      if (ensureAboutEditor()) {
+        state.aboutEditorInstance.setMarkdown(about.body || "", false);
+        updateAboutStats();
+        window.setTimeout(() => {
+          state.syncingAboutEditor = false;
+          updateAboutStats();
+        }, 100);
+        setAboutSaveState(about.updatedAt ? `Atualizado em ${window.Pollo.formatCommentDate(about.updatedAt)}` : "Conteúdo padrão");
+      } else {
+        state.syncingAboutEditor = false;
+        setAboutSaveState("Não foi possível carregar o editor.", true);
+      }
+
+      window.scrollTo({ top: 0, behavior: "auto" });
+      window.requestAnimationFrame(() => aboutTitle.focus({ preventScroll: true }));
+      window.PolloUI.refreshIcons();
+    } catch (error) {
+      showAdminFeedback("Não foi possível abrir a página Sobre.", null, true);
+    }
+  }
+
+  async function saveAbout() {
+    const title = aboutTitle.value.trim();
+    const lede = aboutLede.value.trim();
+    if (!title) {
+      setAboutSaveState("Escreva um título.", true);
+      aboutTitle.focus();
+      return;
+    }
+
+    saveAboutButton.disabled = true;
+    setAboutSaveState("Salvando…");
+    try {
+      const about = await window.Pollo.updateAbout({
+        title,
+        lede,
+        body: aboutEditorMarkdown(),
+      });
+      aboutTitle.value = about.title;
+      aboutLede.value = about.lede;
+      setAboutSaveState("Sobre salvo");
+    } catch (error) {
+      setAboutSaveState("Não foi possível salvar a página Sobre.", true);
+    } finally {
+      saveAboutButton.disabled = false;
+    }
+  }
+
+  async function closeAboutEditor() {
+    aboutView.hidden = true;
+    await showDashboard();
+    document.querySelector("#admin-title").focus({ preventScroll: true });
+  }
+
   function collectEditorData() {
     const pendingTags = tagInput.value.split(",").map((value) => value.trim()).filter(Boolean);
     return {
@@ -309,6 +460,7 @@
     adminView.classList.remove("is-editing");
     dashboardView.hidden = false;
     editorView.hidden = true;
+    aboutView.hidden = true;
     hideAdminFeedback();
     document.title = "Artigos — pollo.city";
     await renderAdminLists();
@@ -340,6 +492,7 @@
     adminView.classList.add("is-editing");
     dashboardView.hidden = true;
     editorView.hidden = false;
+    aboutView.hidden = true;
     document.title = "Editor — pollo.city";
 
     state.syncingEditor = true;
@@ -424,6 +577,7 @@
       state.editorOpen = false;
       adminView.classList.remove("is-editing");
       editorView.hidden = true;
+      aboutView.hidden = true;
       dashboardView.hidden = false;
       await renderAdminLists();
       showAdminFeedback("Artigo publicado.", post, false);
@@ -442,6 +596,8 @@
     authView.hidden = false;
     adminView.hidden = true;
     adminView.classList.remove("is-editing");
+    editorView.hidden = true;
+    aboutView.hidden = true;
     state.editorOpen = false;
     state.dirty = false;
     window.clearTimeout(state.autosaveTimer);
@@ -458,6 +614,7 @@
     adminView.classList.remove("is-editing");
     dashboardView.hidden = false;
     editorView.hidden = true;
+    aboutView.hidden = true;
     hideAdminFeedback();
     document.title = "Artigos — pollo.city";
     await renderAdminLists();
@@ -512,6 +669,12 @@
   newArticleButton.addEventListener("click", () => {
     enterEditor({});
   });
+
+  editAboutButton.addEventListener("click", openAboutEditor);
+  aboutBack.addEventListener("click", closeAboutEditor);
+  saveAboutButton.addEventListener("click", saveAbout);
+  aboutTitle.addEventListener("input", () => setAboutSaveState("Alterações não salvas"));
+  aboutLede.addEventListener("input", () => setAboutSaveState("Alterações não salvas"));
 
   editorBack.addEventListener("click", closeEditor);
   saveDraftButton.addEventListener("click", async () => {
@@ -658,7 +821,14 @@
   });
 
   document.addEventListener("keydown", (event) => {
-    if (!state.editorOpen || !(event.ctrlKey || event.metaKey)) return;
+    if (!(event.ctrlKey || event.metaKey)) return;
+    if (!aboutView.hidden && event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      event.stopPropagation();
+      void saveAbout();
+      return;
+    }
+    if (!state.editorOpen) return;
     if (event.key.toLowerCase() === "s") {
       event.preventDefault();
       event.stopPropagation();

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"pollo.city/internal/domain"
+	"pollo.city/internal/store"
 )
 
 func (s *Store) Export(ctx context.Context) (*domain.Backup, error) {
@@ -15,6 +16,10 @@ func (s *Store) Export(ctx context.Context) (*domain.Backup, error) {
 		return nil, err
 	}
 	drafts, err := s.ListDrafts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	about, err := s.GetAbout(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +57,7 @@ func (s *Store) Export(ctx context.Context) (*domain.Backup, error) {
 		Posts:      posts,
 		Comments:   comments,
 		Drafts:     drafts,
+		About:      about,
 	}, nil
 }
 
@@ -146,6 +152,20 @@ func (s *Store) Import(ctx context.Context, backup *domain.Backup) error {
 			return fmt.Errorf("import draft %s: %w", id, err)
 		}
 		if err := setDraftTags(ctx, tx, id, draft.Tags); err != nil {
+			return err
+		}
+	}
+
+	if backup.About != nil {
+		title := strings.TrimSpace(backup.About.Title)
+		if title == "" {
+			title = defaultAboutTitle
+		}
+		if err := upsertAbout(ctx, tx, store.AboutInput{
+			Title: title,
+			Lede:  strings.TrimSpace(backup.About.Lede),
+			Body:  backup.About.Body,
+		}); err != nil {
 			return err
 		}
 	}
