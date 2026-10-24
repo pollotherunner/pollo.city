@@ -61,7 +61,15 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes("node_modules/lucide")) return "icons";
-          if (id.includes("node_modules/marked") || id.includes("node_modules/dompurify") || id.includes("node_modules/highlight.js")) {
+          if (
+            id.includes("node_modules/markdown-it") ||
+            id.includes("node_modules/linkify-it") ||
+            id.includes("node_modules/mdurl") ||
+            id.includes("node_modules/uc.micro") ||
+            id.includes("node_modules/punycode.js") ||
+            id.includes("node_modules/dompurify") ||
+            id.includes("node_modules/highlight.js")
+          ) {
             return "markdown-vendor";
           }
           return undefined;

@@ -1,0 +1,141 @@
+.md-editor {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.md-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 8px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-alt);
+}
+
+.md-editor-toolbar-group {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.md-editor-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--body-ink);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.md-editor-button:hover {
+  border-color: var(--paper-hover);
+  background: var(--paper-hover);
+  color: var(--ink);
+}
+
+.md-editor-button:focus-visible {
+  outline: 2px solid var(--line-input);
+  outline-offset: 1px;
+}
+
+.md-editor-button[aria-pressed="true"] {
+  border-color: var(--paper-hover-strong);
+  background: var(--paper-hover-strong);
+  color: var(--ink);
+}
+
+.md-editor-button svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.8;
+}
+
+.md-editor-preview-button {
+  padding: 0 10px;
+  border-color: var(--line);
+  background: var(--paper);
+}
+
+.md-editor-separator {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--line);
+}
+
+.md-editor-body {
+  background: var(--paper);
+}
+
+.md-editor-input {
+  display: block;
+  width: 100%;
+  min-height: var(--md-editor-min-height);
+  padding: 28px 32px 36px;
+  overflow: hidden;
+  border: 0;
+  outline: 0;
+  background: var(--paper);
+  color: var(--body-ink);
+  font-family: var(--font-sans);
+  font-size: 18px;
+  line-height: 1.75;
+  letter-spacing: -0.004em;
+  resize: none;
+  tab-size: 2;
+}
+
+.md-editor-input::placeholder {
+  color: var(--muted);
+}
+
+.md-editor-input:focus-visible {
+  outline: 0;
+}
+
+.md-editor-preview.prose {
+  width: auto;
+  min-height: var(--md-editor-min-height);
+  margin: 0;
+  padding: 28px 32px 36px;
+}
+
+.md-editor-preview.prose > *:first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .md-editor-toolbar {
+    gap: 6px;
+    padding: 4px 6px;
+  }
+
+  .md-editor-input,
+  .md-editor-preview.prose {
+    min-height: 460px;
+    padding: 20px 18px 28px;
+    font-size: 17px;
+    line-height: 1.72;
+  }
+}
+
+@media (max-width: 520px) {
+  .md-editor-preview-button span {
+    display: none;
+  }
+}
