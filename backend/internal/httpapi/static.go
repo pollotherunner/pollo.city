@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"net/url"
 	"path"
 	"path/filepath"
 	"strings"
@@ -46,6 +47,15 @@ func (s *Server) permanentRedirect(target string) http.HandlerFunc {
 		}
 		http.Redirect(w, r, location, http.StatusMovedPermanently)
 	}
+}
+
+func (s *Server) legacyPostRedirect(w http.ResponseWriter, r *http.Request) {
+	slug := strings.TrimSpace(r.URL.Query().Get("slug"))
+	if slug == "" {
+		s.permanentRedirect("/")(w, r)
+		return
+	}
+	http.Redirect(w, r, "/post/"+url.PathEscape(slug), http.StatusMovedPermanently)
 }
 
 func (s *Server) servePublicFile(w http.ResponseWriter, r *http.Request, relative string) {

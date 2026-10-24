@@ -399,7 +399,7 @@
     adminFeedback.classList.toggle("is-error", Boolean(isError));
     adminFeedbackMark.innerHTML = `<i data-lucide="${isError ? "alert-circle" : "check"}"></i>`;
     publishedLink.hidden = !link;
-    if (link) publishedLink.href = `post.html?slug=${encodeURIComponent(link.slug)}`;
+    if (link) publishedLink.href = `/post/${encodeURIComponent(link.slug)}`;
     window.PolloUI.refreshIcons();
   }
 
@@ -427,7 +427,7 @@
               <p class="admin-item-meta">${post.tags.map((tag) => `<span>${escape(tag)}</span>`).join("")}<time datetime="${escape(post.date)}">${window.Pollo.formatDate(post.date)}</time></p>
             </div>
             <div class="admin-item-actions">
-              <a href="post.html?slug=${encodeURIComponent(post.slug)}">Ver</a>
+              <a href="/post/${encodeURIComponent(post.slug)}">Ver</a>
               <button type="button" data-action="edit" data-slug="${escape(post.slug)}">Editar</button>
               <button type="button" data-action="delete" data-slug="${escape(post.slug)}">Excluir</button>
             </div>

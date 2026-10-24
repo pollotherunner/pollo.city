@@ -13,16 +13,16 @@
   }
 
   const nav = `<nav class="nav-links" aria-label="Principal">
-    <a href="index.html"${blogCurrent ? ' aria-current="page"' : ""}>Blog</a>
-    <a href="arquivo.html"${archiveCurrent ? ' aria-current="page"' : ""}>Arquivo</a>
-    <a href="sobre.html"${sobreCurrent ? ' aria-current="page"' : ""}>Sobre</a>
+    <a href="/"${blogCurrent ? ' aria-current="page"' : ""}>Blog</a>
+    <a href="/arquivo"${archiveCurrent ? ' aria-current="page"' : ""}>Arquivo</a>
+    <a href="/sobre"${sobreCurrent ? ' aria-current="page"' : ""}>Sobre</a>
     <button class="search-toggle" type="button" aria-label="Buscar artigos" title="Buscar artigos" aria-haspopup="dialog" aria-expanded="false" aria-controls="site-search-dialog"><i data-lucide="search"></i></button>
   </nav>`;
 
   if (headerHost) {
     headerHost.innerHTML = `<header class="site-header">
       <div class="shell header-inner">
-        <a class="brand" href="index.html" aria-label="pollo.city, página inicial">pollo.city</a>
+        <a class="brand" href="/" aria-label="pollo.city, página inicial">pollo.city</a>
         ${nav}
       </div>
     </header>
@@ -74,7 +74,7 @@
       return;
     }
 
-    searchResults.innerHTML = matches.map((post) => `<a class="search-result" href="post.html?slug=${encodeURIComponent(post.slug)}">
+    searchResults.innerHTML = matches.map((post) => `<a class="search-result" href="/post/${encodeURIComponent(post.slug)}">
       <span class="search-result-copy">
         <span class="search-result-title">${window.Pollo.escapeHTML(post.title)}</span>
         <span class="search-result-meta">${post.tags.slice(0, 3).map((tag) => `<span>${window.Pollo.escapeHTML(tag)}</span>`).join("")}<time datetime="${window.Pollo.escapeHTML(post.date)}">${window.Pollo.formatDate(post.date)}</time></span>

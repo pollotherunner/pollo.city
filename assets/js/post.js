@@ -1,6 +1,14 @@
 (async function () {
   const params = new URLSearchParams(window.location.search);
-  const requestedSlug = params.get("slug");
+  const pathMatch = window.location.pathname.match(/^\/post\/([^/]+)\/?$/);
+  let requestedSlug = params.get("slug");
+  if (pathMatch) {
+    try {
+      requestedSlug = decodeURIComponent(pathMatch[1]);
+    } catch (error) {
+      requestedSlug = pathMatch[1];
+    }
+  }
   const article = document.querySelector("#article");
   const commentsSection = document.querySelector("#comentarios");
   const progress = document.querySelector(".reading-progress");
@@ -14,7 +22,7 @@
       <p class="eyebrow">Erro 404</p>
       <h1 class="not-found-title">Esse artigo não existe.</h1>
       <p>${escape(message)}</p>
-      <a class="button" href="index.html#artigos">Voltar aos artigos <i data-lucide="arrow-left"></i></a>
+      <a class="button" href="/#artigos">Voltar aos artigos <i data-lucide="arrow-left"></i></a>
     </div>`;
     window.PolloUI.refreshIcons();
   }
@@ -47,7 +55,7 @@
   document.querySelector('meta[name="description"]').setAttribute("content", post.excerpt || post.title);
 
   const tagLinks = post.tags.length
-    ? `<span class="article-tags">${post.tags.map((tag) => `<a class="article-tag" href="index.html?tag=${encodeURIComponent(window.Pollo.tagSlug(tag))}">${escape(tag)}</a>`).join("")}</span>`
+    ? `<span class="article-tags">${post.tags.map((tag) => `<a class="article-tag" href="/?tag=${encodeURIComponent(window.Pollo.tagSlug(tag))}">${escape(tag)}</a>`).join("")}</span>`
     : "";
 
   metaHost.innerHTML = `<time datetime="${escape(post.date)}">${window.Pollo.formatDate(post.date)}</time>${tagLinks}`;
