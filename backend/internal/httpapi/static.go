@@ -13,7 +13,7 @@ var publicPages = map[string]string{
 	"/post.html":    "post.html",
 	"/arquivo.html": "arquivo.html",
 	"/sobre.html":   "sobre.html",
-	"/admin.html":   "admin.html",
+	"/admin":        "admin.html",
 	"/favicon.svg":  "favicon.svg",
 }
 
@@ -21,6 +21,15 @@ func (s *Server) staticHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		if r.URL.Path == "/admin/" || r.URL.Path == "/admin.html" {
+			target := "/admin"
+			if r.URL.RawQuery != "" {
+				target += "?" + r.URL.RawQuery
+			}
+			http.Redirect(w, r, target, http.StatusMovedPermanently)
 			return
 		}
 

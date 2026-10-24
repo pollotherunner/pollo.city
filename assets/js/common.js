@@ -5,7 +5,6 @@
   const blogCurrent = page === "home" || page === "post";
   const archiveCurrent = page === "archive";
   const sobreCurrent = page === "sobre";
-  const adminCurrent = page === "admin";
 
   function refreshIcons() {
     if (window.lucide && typeof window.lucide.createIcons === "function") {
@@ -18,7 +17,6 @@
     <a href="arquivo.html"${archiveCurrent ? ' aria-current="page"' : ""}>Arquivo</a>
     <a href="sobre.html"${sobreCurrent ? ' aria-current="page"' : ""}>Sobre</a>
     <button class="search-toggle" type="button" aria-label="Buscar artigos" title="Buscar artigos" aria-haspopup="dialog" aria-expanded="false" aria-controls="site-search-dialog"><i data-lucide="search"></i></button>
-    <a href="admin.html"${adminCurrent ? ' aria-current="page"' : ""}><i data-lucide="key-round"></i>Admin</a>
   </nav>`;
 
   if (headerHost) {
