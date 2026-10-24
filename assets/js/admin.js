@@ -188,7 +188,6 @@
   function collectEditorData() {
     const pendingTags = tagInput.value.split(",").map((value) => value.trim()).filter(Boolean);
     return {
-      postSlug: state.postSlug || "",
       title: titleField.value.trim(),
       tags: window.Pollo.normalizeTags([...state.tags, ...pendingTags]),
       thumbnail: state.thumbnail,
@@ -222,9 +221,10 @@
 
     state.saveChain = state.saveChain
       .then(async () => {
+        const draftData = { ...data, postSlug: state.postSlug || "" };
         const draft = state.draftId
-          ? await window.Pollo.updateDraft(state.draftId, data)
-          : await window.Pollo.createDraft(data);
+          ? await window.Pollo.updateDraft(state.draftId, draftData)
+          : await window.Pollo.createDraft(draftData);
         state.draftId = draft.id;
         if (state.revision === revision) {
           state.dirty = false;
