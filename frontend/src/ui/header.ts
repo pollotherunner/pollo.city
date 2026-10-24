@@ -17,6 +17,7 @@ export function mountHeader(host: HTMLElement, page: PageKind): void {
         <a href="/arquivo"${activeAttribute(archiveCurrent)}>Arquivo</a>
         <a href="/sobre"${activeAttribute(aboutCurrent)}>Sobre</a>
         <button class="search-toggle" type="button" aria-label="Buscar artigos" title="Buscar artigos" aria-haspopup="dialog" aria-expanded="false" aria-controls="site-search-dialog"><i data-lucide="search"></i></button>
+        <button class="theme-toggle" type="button" aria-label="Ativar modo escuro" title="Ativar modo escuro" aria-pressed="false"><i data-lucide="moon"></i></button>
       </nav>
     </div>
   </header>

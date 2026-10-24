@@ -4,6 +4,7 @@ import { mountFooter } from "./footer";
 import { mountHeader } from "./header";
 import { currentPage } from "./page";
 import { SearchDialog } from "./search";
+import { mountThemeToggle } from "./theme";
 
 export function mountSiteChrome(): void {
   const headerHost = query<HTMLElement>("[data-site-header]");
@@ -12,5 +13,6 @@ export function mountSiteChrome(): void {
   mountHeader(headerHost, currentPage());
   mountFooter(footerHost);
   new SearchDialog().mount();
+  mountThemeToggle();
   refreshIcons();
 }
