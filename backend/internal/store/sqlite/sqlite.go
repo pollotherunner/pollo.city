@@ -17,9 +17,6 @@ import (
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-//go:embed seed.json
-var seedFS embed.FS
-
 type Store struct {
 	db *sql.DB
 }
@@ -50,11 +47,6 @@ func New(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
-	if err := store.seed(context.Background()); err != nil {
-		db.Close()
-		return nil, err
-	}
-
 	return store, nil
 }
 
