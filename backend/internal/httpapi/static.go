@@ -16,7 +16,7 @@ func (s *Server) staticHandler() http.Handler {
 
 		requestPath := path.Clean("/" + r.URL.Path)
 		if strings.HasPrefix(requestPath, "/assets/") {
-			s.servePublicFile(w, r, strings.TrimPrefix(requestPath, "/"), true)
+			s.servePublicFile(w, r, strings.TrimPrefix(requestPath, "/"))
 			return
 		}
 		if strings.HasPrefix(requestPath, "/uploads/") {
@@ -34,7 +34,7 @@ func (s *Server) staticHandler() http.Handler {
 
 func (s *Server) page(relative string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		s.servePublicFile(w, r, relative, false)
+		s.servePublicFile(w, r, relative)
 	}
 }
 
@@ -48,12 +48,8 @@ func (s *Server) permanentRedirect(target string) http.HandlerFunc {
 	}
 }
 
-func (s *Server) servePublicFile(w http.ResponseWriter, r *http.Request, relative string, cacheable bool) {
-	if cacheable {
-		w.Header().Set("Cache-Control", "public, max-age=3600")
-	} else {
-		w.Header().Set("Cache-Control", "no-cache")
-	}
+func (s *Server) servePublicFile(w http.ResponseWriter, r *http.Request, relative string) {
+	w.Header().Set("Cache-Control", "no-cache")
 	http.ServeFile(w, r, filepath.Join(s.cfg.PublicDir, filepath.FromSlash(relative)))
 }
 
