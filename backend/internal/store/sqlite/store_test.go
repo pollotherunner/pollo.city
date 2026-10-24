@@ -17,12 +17,12 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	}
 	defer instance.Close()
 
-	seeded, err := instance.ListPosts(ctx)
+	initial, err := instance.ListPosts(ctx)
 	if err != nil {
-		t.Fatalf("list seeded posts: %v", err)
+		t.Fatalf("list initial posts: %v", err)
 	}
-	if len(seeded) != 4 {
-		t.Fatalf("expected 4 seeded posts, got %d", len(seeded))
+	if len(initial) != 0 {
+		t.Fatalf("expected an empty database, got %d posts", len(initial))
 	}
 
 	created, err := instance.CreatePost(ctx, store.PostInput{
@@ -104,41 +104,6 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	}
 	if _, err := instance.GetPost(ctx, created.Slug); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
-	}
-}
-
-func TestSeedRunsOnlyOnce(t *testing.T) {
-	ctx := context.Background()
-	databasePath := filepath.Join(t.TempDir(), "pollo.db")
-
-	first, err := New(databasePath)
-	if err != nil {
-		t.Fatalf("open first store: %v", err)
-	}
-	posts, err := first.ListPosts(ctx)
-	if err != nil {
-		t.Fatalf("list first posts: %v", err)
-	}
-	for _, post := range posts {
-		if err := first.DeletePost(ctx, post.Slug); err != nil {
-			t.Fatalf("delete seed post: %v", err)
-		}
-	}
-	if err := first.Close(); err != nil {
-		t.Fatalf("close first store: %v", err)
-	}
-
-	second, err := New(databasePath)
-	if err != nil {
-		t.Fatalf("open second store: %v", err)
-	}
-	defer second.Close()
-	posts, err = second.ListPosts(ctx)
-	if err != nil {
-		t.Fatalf("list second posts: %v", err)
-	}
-	if len(posts) != 0 {
-		t.Fatalf("expected seed not to run again, got %d posts", len(posts))
 	}
 }
 
