@@ -1,4 +1,4 @@
-.PHONY: install dev check test vet build docker-up docker-down
+.PHONY: install dev check test vet build docker-up docker-down deploy
 
 install:
 	npm ci
@@ -27,3 +27,7 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+deploy:
+	docker compose pull
+	docker compose up -d --no-build
