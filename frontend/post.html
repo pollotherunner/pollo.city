@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Artigo — pollo.city</title>
+  <meta name="description" content="Um artigo do pollo.city.">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/src/styles/main.css">
+</head>
+<body id="top" data-page="post">
+  <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+  <div data-site-header></div>
+
+  <main id="conteudo">
+    <div class="reading-progress" aria-hidden="true"><span data-progress-bar></span></div>
+    <article id="article">
+      <header class="article-head">
+        <a class="back-link" href="/#artigos"><i data-lucide="arrow-left"></i>Voltar aos artigos</a>
+        <div class="article-meta" id="article-meta"></div>
+        <h1 class="article-title" id="article-title"></h1>
+        <p class="article-deck" id="article-deck"></p>
+        <div class="article-byline" id="article-byline"></div>
+      </header>
+      <div class="prose" id="article-body"></div>
+    </article>
+
+    <section class="comments-section" id="comentarios" aria-labelledby="comments-title">
+      <div class="comments-inner">
+        <header class="comments-heading">
+          <h2 class="comments-title" id="comments-title">Comentários <span class="comment-count" data-comment-count>0</span></h2>
+        </header>
+
+        <form class="comment-form" id="comment-form" novalidate>
+          <div class="form-grid">
+            <div class="field">
+              <label class="field-label" for="comment-name">Seu nome</label>
+              <input class="input" id="comment-name" name="name" type="text" maxlength="48" autocomplete="name" placeholder="Como quer ser chamado?" required>
+            </div>
+            <div class="field">
+              <label class="field-label" for="comment-body">Sua mensagem</label>
+              <textarea class="input" id="comment-body" name="body" rows="4" maxlength="800" placeholder="O que ficou com você?" required></textarea>
+            </div>
+          </div>
+          <div class="form-footer">
+            <button class="button" type="submit">Comentar <i data-lucide="arrow-up-right"></i></button>
+          </div>
+          <p class="form-status" id="comment-status" role="status" aria-live="polite" hidden></p>
+        </form>
+
+        <div class="comments-list" id="comments-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <div data-site-footer></div>
+  <script type="module" src="/src/pages/post.ts"></script>
+</body>
+</html>
