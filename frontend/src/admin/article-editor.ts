@@ -24,6 +24,7 @@ export class ArticleEditor {
   private readonly saveState = byId<HTMLElement>("editor-save-state");
   private readonly titleField = byId<HTMLInputElement>("editor-title");
   private readonly excerptField = byId<HTMLTextAreaElement>("editor-excerpt");
+  private readonly sectionField = byId<HTMLSelectElement>("editor-section");
   private readonly wordCount = byId<HTMLElement>("editor-word-count");
   private readonly readTime = byId<HTMLElement>("editor-read-time");
   private readonly editorHost = byId<HTMLElement>("markdown-editor");
@@ -72,6 +73,7 @@ export class ArticleEditor {
     });
     this.titleField.addEventListener("input", () => this.markChanged());
     this.excerptField.addEventListener("input", () => this.markChanged());
+    this.sectionField.addEventListener("change", () => this.markChanged());
     this.tagEditor.mount();
     this.coverField.mount();
     this.bindShortcuts();
@@ -101,6 +103,7 @@ export class ArticleEditor {
 
     this.titleField.value = content?.title ?? "";
     this.excerptField.value = content?.excerpt ?? "";
+    this.sectionField.value = content?.section ?? "article";
     this.coverField.setValue(content?.thumbnail ?? "");
 
     try {
@@ -190,6 +193,7 @@ export class ArticleEditor {
       tags: this.tagEditor.getTags(),
       thumbnail: this.coverField.getValue(),
       body: this.markdown(),
+      section: this.sectionField.value === "off-topic" ? "off-topic" : "article",
     };
   }
 

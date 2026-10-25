@@ -10,6 +10,7 @@ describe("editor payloads", () => {
       tags: ["Teste"],
       thumbnail: "/uploads/image.png",
       body: "Conteúdo",
+      section: "article",
     };
 
     expect(toDraftInput(content, "meu-artigo")).toEqual({
@@ -26,6 +27,7 @@ describe("editor payloads", () => {
       tags: [],
       thumbnail: "",
       body: "Conteúdo",
+      section: "off-topic",
     };
     expect(toDraftInput(content, null).postSlug).toBe("");
   });

@@ -53,6 +53,13 @@
           <button class="text-button" id="export-button" type="button"><i data-lucide="download"></i>Exportar dados</button>
           <button class="text-button" id="import-button" type="button"><i data-lucide="upload"></i>Importar dados</button>
           <input id="import-input" type="file" accept="application/json,.json" hidden>
+          <label class="admin-filter" for="section-filter">Seção
+            <select id="section-filter">
+              <option value="all">Todas</option>
+              <option value="article">Artigos</option>
+              <option value="off-topic">Off-Topic</option>
+            </select>
+          </label>
         </div>
 
         <div class="publish-feedback" id="admin-feedback" role="status" aria-live="polite" hidden>
@@ -104,6 +111,14 @@
           <div class="editor-field">
             <label class="field-label" for="editor-excerpt">Resumo</label>
             <textarea class="input editor-excerpt-input" id="editor-excerpt" maxlength="500" rows="2" placeholder="Uma frase curta para aparecer abaixo do título. Opcional."></textarea>
+          </div>
+
+          <div class="editor-field editor-section-field">
+            <label class="field-label" for="editor-section">Seção</label>
+            <select class="input editor-section-select" id="editor-section">
+              <option value="article">Artigo</option>
+              <option value="off-topic">Off-Topic</option>
+            </select>
           </div>
 
           <div class="editor-tags">
