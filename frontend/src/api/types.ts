@@ -9,6 +9,7 @@ export interface Post {
   thumbnail: string;
   body: string;
   section: Section;
+  audio: string;
 }
 
 export interface Comment {
@@ -27,6 +28,7 @@ export interface Draft {
   thumbnail: string;
   body: string;
   section: Section;
+  audio: string;
   updatedAt: string;
 }
 
@@ -66,6 +68,7 @@ export interface PostInput {
   thumbnail: string;
   body: string;
   section: Section;
+  audio: string;
 }
 
 export interface DraftInput {
@@ -76,6 +79,7 @@ export interface DraftInput {
   thumbnail: string;
   body: string;
   section: Section;
+  audio: string;
 }
 
 export interface CommentInput {

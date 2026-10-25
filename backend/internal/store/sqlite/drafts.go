@@ -13,7 +13,7 @@ import (
 )
 
 func (s *Store) ListDrafts(ctx context.Context) ([]domain.Draft, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT d.id, COALESCE(p.slug, ''), d.title, d.excerpt, d.body_markdown, d.thumbnail_url, d.section, d.updated_at
+	rows, err := s.db.QueryContext(ctx, `SELECT d.id, COALESCE(p.slug, ''), d.title, d.excerpt, d.body_markdown, d.thumbnail_url, d.section, d.audio_url, d.updated_at
 		FROM drafts d
 		LEFT JOIN posts p ON p.id = d.post_id
 		ORDER BY julianday(d.updated_at) DESC`)
@@ -27,7 +27,7 @@ func (s *Store) ListDrafts(ctx context.Context) ([]domain.Draft, error) {
 	for rows.Next() {
 		var draft domain.Draft
 		var updatedAt string
-		if err := rows.Scan(&draft.ID, &draft.PostSlug, &draft.Title, &draft.Excerpt, &draft.Body, &draft.Thumbnail, &draft.Section, &updatedAt); err != nil {
+		if err := rows.Scan(&draft.ID, &draft.PostSlug, &draft.Title, &draft.Excerpt, &draft.Body, &draft.Thumbnail, &draft.Section, &draft.Audio, &updatedAt); err != nil {
 			return nil, fmt.Errorf("scan draft: %w", err)
 		}
 		date, err := parseStoredTime(updatedAt)
@@ -58,11 +58,11 @@ func (s *Store) ListDrafts(ctx context.Context) ([]domain.Draft, error) {
 func (s *Store) GetDraft(ctx context.Context, id string) (*domain.Draft, error) {
 	var draft domain.Draft
 	var updatedAt string
-	err := s.db.QueryRowContext(ctx, `SELECT d.id, COALESCE(p.slug, ''), d.title, d.excerpt, d.body_markdown, d.thumbnail_url, d.section, d.updated_at
+	err := s.db.QueryRowContext(ctx, `SELECT d.id, COALESCE(p.slug, ''), d.title, d.excerpt, d.body_markdown, d.thumbnail_url, d.section, d.audio_url, d.updated_at
 		FROM drafts d
 		LEFT JOIN posts p ON p.id = d.post_id
 		WHERE d.id = ?`, id).
-		Scan(&draft.ID, &draft.PostSlug, &draft.Title, &draft.Excerpt, &draft.Body, &draft.Thumbnail, &draft.Section, &updatedAt)
+		Scan(&draft.ID, &draft.PostSlug, &draft.Title, &draft.Excerpt, &draft.Body, &draft.Thumbnail, &draft.Section, &draft.Audio, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, store.ErrNotFound
 	}
@@ -102,10 +102,10 @@ func (s *Store) CreateDraft(ctx context.Context, input store.DraftInput) (*domai
 	}
 	now := time.Now().UTC()
 	if _, err := tx.ExecContext(ctx, `INSERT INTO drafts
-		(id, post_id, title, excerpt, body_markdown, thumbnail_url, section, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		(id, post_id, title, excerpt, body_markdown, thumbnail_url, section, audio_url, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, postID, strings.TrimSpace(input.Title), strings.TrimSpace(input.Excerpt), input.Body, input.Thumbnail,
-		domain.NormalizeSection(input.Section), timeString(now), timeString(now)); err != nil {
+		domain.NormalizeSection(input.Section), strings.TrimSpace(input.Audio), timeString(now), timeString(now)); err != nil {
 		return nil, fmt.Errorf("insert draft: %w", err)
 	}
 	if err := setDraftTags(ctx, tx, id, input.Tags); err != nil {
@@ -136,10 +136,10 @@ func (s *Store) UpdateDraft(ctx context.Context, id string, input store.DraftInp
 		return nil, err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE drafts
-		SET post_id = ?, title = ?, excerpt = ?, body_markdown = ?, thumbnail_url = ?, section = ?, updated_at = ?
+		SET post_id = ?, title = ?, excerpt = ?, body_markdown = ?, thumbnail_url = ?, section = ?, audio_url = ?, updated_at = ?
 		WHERE id = ?`,
 		postID, strings.TrimSpace(input.Title), strings.TrimSpace(input.Excerpt), input.Body, input.Thumbnail,
-		domain.NormalizeSection(input.Section), nowString(), id); err != nil {
+		domain.NormalizeSection(input.Section), strings.TrimSpace(input.Audio), nowString(), id); err != nil {
 		return nil, fmt.Errorf("update draft: %w", err)
 	}
 	if err := setDraftTags(ctx, tx, id, input.Tags); err != nil {

@@ -11,6 +11,7 @@ type Post struct {
 	Thumbnail string   `json:"thumbnail"`
 	Body      string   `json:"body"`
 	Section   string   `json:"section"`
+	Audio     string   `json:"audio"`
 }
 
 type Comment struct {
@@ -36,6 +37,7 @@ type Draft struct {
 	Thumbnail string    `json:"thumbnail"`
 	Body      string    `json:"body"`
 	Section   string    `json:"section"`
+	Audio     string    `json:"audio"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 

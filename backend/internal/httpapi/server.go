@@ -50,6 +50,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("DELETE /api/admin/drafts/{id}", s.requireAdmin(http.HandlerFunc(s.deleteDraft)))
 
 	mux.Handle("POST /api/admin/uploads", s.requireAdmin(http.HandlerFunc(s.uploadImage)))
+	mux.Handle("POST /api/admin/uploads/audio", s.requireAdmin(http.HandlerFunc(s.uploadAudio)))
 	mux.Handle("GET /api/admin/export", s.requireAdmin(http.HandlerFunc(s.exportBackup)))
 	mux.Handle("POST /api/admin/import", s.requireAdmin(http.HandlerFunc(s.importBackup)))
 	mux.Handle("PUT /api/admin/about", s.requireAdmin(http.HandlerFunc(s.updateAbout)))

@@ -20,6 +20,7 @@ type PostInput struct {
 	Thumbnail string
 	Body      string
 	Section   string
+	Audio     string
 }
 
 type DraftInput struct {
@@ -30,6 +31,7 @@ type DraftInput struct {
 	Thumbnail string
 	Body      string
 	Section   string
+	Audio     string
 }
 
 type CommentInput struct {

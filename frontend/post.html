@@ -23,6 +23,38 @@
         <h1 class="article-title" id="article-title"></h1>
         <p class="article-deck" id="article-deck"></p>
         <div class="article-byline" id="article-byline"></div>
+        <div class="article-audio" id="article-audio" hidden>
+          <div class="article-audio-head">
+            <span class="article-audio-label"><i data-lucide="volume-2"></i>Ouça este artigo</span>
+            <label class="article-audio-rate">
+              <span class="sr-only">Velocidade de reprodução</span>
+              <select id="article-audio-rate" aria-label="Velocidade de reprodução">
+                <option value="0.5">0,5×</option>
+                <option value="0.75">0,75×</option>
+                <option value="1" selected>1×</option>
+                <option value="1.25">1,25×</option>
+                <option value="1.5">1,5×</option>
+                <option value="1.75">1,75×</option>
+                <option value="2">2×</option>
+              </select>
+            </label>
+          </div>
+          <div class="article-audio-player">
+            <button class="article-audio-play" id="article-audio-play" type="button" aria-label="Reproduzir áudio">
+              <span class="article-audio-icon article-audio-icon--play"><i data-lucide="play"></i></span>
+              <span class="article-audio-icon article-audio-icon--pause"><i data-lucide="pause"></i></span>
+            </button>
+            <div class="article-audio-wave-wrap">
+              <div class="article-audio-wave" id="article-audio-wave" aria-hidden="true"></div>
+              <input class="article-audio-seek" id="article-audio-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Progresso do áudio">
+            </div>
+            <div class="article-audio-meta">
+              <span id="article-audio-current">0:00</span>
+              <span id="article-audio-duration">0:00</span>
+            </div>
+          </div>
+          <audio id="article-audio-source" preload="metadata" hidden></audio>
+        </div>
       </header>
       <div class="prose" id="article-body"></div>
     </article>

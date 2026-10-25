@@ -243,24 +243,40 @@ export class ApiClient {
   }
 
   async uploadImage(file: File | Blob): Promise<string> {
+    return this.uploadFile("/admin/uploads", file, "Não foi possível enviar a imagem.");
+  }
+
+  async uploadAudio(file: File | Blob, waveform?: number[]): Promise<string> {
+    return this.uploadFile("/admin/uploads/audio", file, "Não foi possível enviar o áudio.", waveform);
+  }
+
+  private async uploadFile(
+    path: string,
+    file: File | Blob,
+    errorText: string,
+    waveform?: number[],
+  ): Promise<string> {
     const form = new FormData();
     form.append("file", file);
+    if (waveform?.length) {
+      form.append("waveform", JSON.stringify(waveform));
+    }
 
     let response: Response;
     try {
-      response = await this.fetchImpl(`${this.baseUrl}/admin/uploads`, {
+      response = await this.fetchImpl(`${this.baseUrl}${path}`, {
         method: "POST",
         body: form,
         credentials: "same-origin",
         headers: { Accept: "application/json" },
       });
     } catch {
-      throw new ApiError("Não foi possível enviar a imagem.", 0);
+      throw new ApiError(errorText, 0);
     }
 
     const payload = await readJson(response);
     if (!response.ok) {
-      throw new ApiError(errorMessage(payload) ?? "Não foi possível enviar a imagem.", response.status);
+      throw new ApiError(errorMessage(payload) ?? errorText, response.status);
     }
     return (payload as UploadResponse).url;
   }

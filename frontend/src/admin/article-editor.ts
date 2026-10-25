@@ -3,6 +3,7 @@ import type { Draft, Post, PostInput } from "@/api/types";
 import { byId } from "@/lib/dom";
 import { countWords, readingMinutes } from "@/lib/strings";
 import { createMarkdownEditor, type MarkdownEditor } from "./markdown-editor";
+import { AudioField } from "./audio-field";
 import { CoverField } from "./cover-field";
 import { toDraftInput } from "./editor-payload";
 import { TagEditor } from "./tag-editor";
@@ -48,6 +49,20 @@ export class ArticleEditor {
       onError: (message) => this.setSaveState(message, true),
     },
   );
+  private readonly audioField = new AudioField(
+    {
+      preview: byId<HTMLAudioElement>("audio-preview"),
+      button: byId<HTMLButtonElement>("audio-upload-button"),
+      input: byId<HTMLInputElement>("audio-file-input"),
+      removeButton: byId<HTMLButtonElement>("audio-remove-button"),
+      label: byId<HTMLElement>("audio-upload-label"),
+      status: byId<HTMLElement>("audio-status"),
+    },
+    {
+      onChange: () => this.markChanged(),
+      onError: (message) => this.setSaveState(message, true),
+    },
+  );
 
   private editor: MarkdownEditor | null = null;
   private draftId: string | null = null;
@@ -76,6 +91,7 @@ export class ArticleEditor {
     this.sectionField.addEventListener("change", () => this.markChanged());
     this.tagEditor.mount();
     this.coverField.mount();
+    this.audioField.mount();
     this.bindShortcuts();
   }
 
@@ -105,6 +121,7 @@ export class ArticleEditor {
     this.excerptField.value = content?.excerpt ?? "";
     this.sectionField.value = content?.section ?? "article";
     this.coverField.setValue(content?.thumbnail ?? "");
+    this.audioField.setValue(content?.audio ?? "");
 
     try {
       this.tagEditor.setAvailable(await api.getTags());
@@ -194,11 +211,12 @@ export class ArticleEditor {
       thumbnail: this.coverField.getValue(),
       body: this.markdown(),
       section: this.sectionField.value === "off-topic" ? "off-topic" : "article",
+      audio: this.audioField.getValue(),
     };
   }
 
   private hasContent(data: PostInput): boolean {
-    return Boolean(data.title || data.excerpt || data.body || data.thumbnail);
+    return Boolean(data.title || data.excerpt || data.body || data.thumbnail || data.audio);
   }
 
   private async persistDraft(announce: boolean): Promise<void> {
@@ -260,6 +278,10 @@ export class ArticleEditor {
 
   private async publish(): Promise<void> {
     if (this.publishing) {
+      return;
+    }
+    if (this.audioField.isUploading()) {
+      this.setSaveState("Aguarde o envio do áudio terminar.", true);
       return;
     }
 

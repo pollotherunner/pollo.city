@@ -16,6 +16,7 @@ type draftRequest struct {
 	Thumbnail string   `json:"thumbnail"`
 	Body      string   `json:"body"`
 	Section   string   `json:"section"`
+	Audio     string   `json:"audio"`
 }
 
 func (s *Server) listDrafts(w http.ResponseWriter, r *http.Request) {
@@ -44,6 +45,7 @@ func (s *Server) createDraft(w http.ResponseWriter, r *http.Request) {
 		Thumbnail: strings.TrimSpace(request.Thumbnail),
 		Body:      request.Body,
 		Section:   request.Section,
+		Audio:     strings.TrimSpace(request.Audio),
 	})
 	if err != nil {
 		s.writeStoreError(w, err)
@@ -68,6 +70,7 @@ func (s *Server) updateDraft(w http.ResponseWriter, r *http.Request) {
 		Thumbnail: strings.TrimSpace(request.Thumbnail),
 		Body:      request.Body,
 		Section:   request.Section,
+		Audio:     strings.TrimSpace(request.Audio),
 	})
 	if err != nil {
 		s.writeStoreError(w, err)
@@ -103,6 +106,15 @@ func validateDraft(w http.ResponseWriter, request draftRequest) bool {
 	}
 	if len([]rune(request.Thumbnail)) > 2048 {
 		writeError(w, http.StatusBadRequest, "thumbnail is too long")
+		return false
+	}
+	audio := strings.TrimSpace(request.Audio)
+	if len([]rune(audio)) > 2048 {
+		writeError(w, http.StatusBadRequest, "audio is too long")
+		return false
+	}
+	if audio != "" && (!strings.HasPrefix(audio, "/uploads/") || strings.Contains(audio, "..")) {
+		writeError(w, http.StatusBadRequest, "invalid audio")
 		return false
 	}
 	section := strings.TrimSpace(request.Section)

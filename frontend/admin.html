@@ -121,6 +121,20 @@
             </select>
           </div>
 
+          <div class="editor-field editor-audio-field">
+            <div class="editor-audio-heading">
+              <span class="field-label">Áudio do artigo</span>
+              <span class="editor-audio-status" id="audio-status" role="status" aria-live="polite"></span>
+            </div>
+            <audio class="editor-audio-preview" id="audio-preview" controls preload="metadata" hidden></audio>
+            <div class="editor-audio-actions">
+              <button class="text-button" id="audio-upload-button" type="button"><i data-lucide="volume-2"></i><span id="audio-upload-label">Adicionar áudio</span></button>
+              <button class="text-button" id="audio-remove-button" type="button" hidden><i data-lucide="x"></i>Remover áudio</button>
+              <input id="audio-file-input" type="file" accept=".mp3,.ogg,.opus,.webm,.m4a,.aac,.wav,audio/mpeg,audio/ogg,audio/opus,audio/webm,audio/mp4,audio/aac,audio/wav" hidden>
+            </div>
+            <p class="editor-audio-hint">Opcional. O player só aparece no artigo quando houver áudio.</p>
+          </div>
+
           <div class="editor-tags">
             <div class="tag-chips" id="editor-tag-chips"></div>
             <label class="sr-only" for="tag-input">Tags do artigo</label>

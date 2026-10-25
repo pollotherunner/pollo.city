@@ -68,6 +68,7 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 		Excerpt: "Resumo curto.",
 		Tags:    []string{"Ação", "Código", "Ação"},
 		Body:    "## Teste\n\nConteúdo do artigo.",
+		Audio:   "/uploads/audio-teste.mp3",
 	})
 	if err != nil {
 		t.Fatalf("create post: %v", err)
@@ -83,6 +84,9 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	}
 	if created.Section != domain.SectionArticle {
 		t.Fatalf("unexpected default section: %q", created.Section)
+	}
+	if created.Audio != "/uploads/audio-teste.mp3" {
+		t.Fatalf("unexpected audio: %q", created.Audio)
 	}
 
 	offTopic, err := instance.CreatePost(ctx, store.PostInput{
@@ -129,6 +133,7 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 		Title: "Título atualizado",
 		Tags:  []string{"Teste"},
 		Body:  "Conteúdo atualizado.",
+		Audio: "/uploads/audio-teste.mp3",
 	})
 	if err != nil {
 		t.Fatalf("update post: %v", err)
@@ -138,6 +143,9 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	}
 	if updated.Title != "Título atualizado" {
 		t.Fatalf("unexpected title: %s", updated.Title)
+	}
+	if updated.Audio != "/uploads/audio-teste.mp3" {
+		t.Fatalf("unexpected updated audio: %q", updated.Audio)
 	}
 
 	comment, err := instance.AddComment(ctx, created.Slug, store.CommentInput{Name: "Pollo", Body: "Comentário de teste."})
@@ -162,6 +170,7 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 		Tags:     []string{"Teste"},
 		Body:     "Rascunho de teste.",
 		Section:  domain.SectionOffTopic,
+		Audio:    "/uploads/audio-rascunho.mp3",
 	})
 	if err != nil {
 		t.Fatalf("create draft: %v", err)
@@ -175,6 +184,9 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	if draft.Section != domain.SectionOffTopic {
 		t.Fatalf("unexpected draft section: %q", draft.Section)
 	}
+	if draft.Audio != "/uploads/audio-rascunho.mp3" {
+		t.Fatalf("unexpected draft audio: %q", draft.Audio)
+	}
 	draft, err = instance.UpdateDraft(ctx, draft.ID, store.DraftInput{
 		Title: "Rascunho atualizado",
 		Body:  "Rascunho atualizado.",
@@ -187,6 +199,9 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	}
 	if draft.Section != domain.SectionArticle {
 		t.Fatalf("unexpected updated draft section: %q", draft.Section)
+	}
+	if draft.Audio != "" {
+		t.Fatalf("expected draft audio to be cleared, got %q", draft.Audio)
 	}
 
 	if err := instance.DeleteDraft(ctx, draft.ID); err != nil {
@@ -212,6 +227,7 @@ func TestBackupPreservesSections(t *testing.T) {
 		Title:   "Off-topic de backup",
 		Body:    "Conteúdo.",
 		Section: domain.SectionOffTopic,
+		Audio:   "/uploads/audio-backup.ogg",
 	}); err != nil {
 		t.Fatalf("create post: %v", err)
 	}
@@ -219,8 +235,8 @@ func TestBackupPreservesSections(t *testing.T) {
 	if err != nil {
 		t.Fatalf("export backup: %v", err)
 	}
-	if len(backup.Posts) != 1 || backup.Posts[0].Section != domain.SectionOffTopic {
-		t.Fatalf("backup did not preserve section: %+v", backup.Posts)
+	if len(backup.Posts) != 1 || backup.Posts[0].Section != domain.SectionOffTopic || backup.Posts[0].Audio != "/uploads/audio-backup.ogg" {
+		t.Fatalf("backup did not preserve post media: %+v", backup.Posts)
 	}
 	if err := instance.Import(ctx, backup); err != nil {
 		t.Fatalf("import backup: %v", err)
@@ -229,8 +245,8 @@ func TestBackupPreservesSections(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list imported posts: %v", err)
 	}
-	if len(posts) != 1 || posts[0].Section != domain.SectionOffTopic {
-		t.Fatalf("import did not preserve section: %+v", posts)
+	if len(posts) != 1 || posts[0].Section != domain.SectionOffTopic || posts[0].Audio != "/uploads/audio-backup.ogg" {
+		t.Fatalf("import did not preserve post media: %+v", posts)
 	}
 }
 

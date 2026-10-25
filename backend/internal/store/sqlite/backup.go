@@ -93,10 +93,10 @@ func (s *Store) Import(ctx context.Context, backup *domain.Backup) error {
 		}
 		excerpt := strings.TrimSpace(post.Excerpt)
 		result, err := tx.ExecContext(ctx, `INSERT INTO posts
-			(slug, title, excerpt, body_markdown, thumbnail_url, section, published_at, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			(slug, title, excerpt, body_markdown, thumbnail_url, section, audio_url, published_at, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			slug, strings.TrimSpace(post.Title), excerpt, post.Body, post.Thumbnail,
-			domain.NormalizeSection(post.Section),
+			domain.NormalizeSection(post.Section), strings.TrimSpace(post.Audio),
 			timeString(publishedAt), timeString(publishedAt), timeString(publishedAt))
 		if err != nil {
 			return fmt.Errorf("import post %s: %w", slug, err)
@@ -144,10 +144,11 @@ func (s *Store) Import(ctx context.Context, backup *domain.Backup) error {
 			updatedAt = time.Now().UTC()
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO drafts
-			(id, post_id, title, excerpt, body_markdown, thumbnail_url, section, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			(id, post_id, title, excerpt, body_markdown, thumbnail_url, section, audio_url, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			id, postID, draft.Title, draft.Excerpt, draft.Body, draft.Thumbnail,
-			domain.NormalizeSection(draft.Section), timeString(updatedAt), timeString(updatedAt)); err != nil {
+			domain.NormalizeSection(draft.Section), strings.TrimSpace(draft.Audio),
+			timeString(updatedAt), timeString(updatedAt)); err != nil {
 			return fmt.Errorf("import draft %s: %w", id, err)
 		}
 		if err := setDraftTags(ctx, tx, id, draft.Tags); err != nil {
