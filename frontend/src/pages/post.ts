@@ -1,4 +1,4 @@
-import { api } from "@/api/client";
+import { api, ApiError } from "@/api/client";
 import type { Comment, Post } from "@/api/types";
 import { mountArticleAudio } from "@/lib/article-audio-player";
 import { escapeHtml, query } from "@/lib/dom";
@@ -198,8 +198,12 @@ function mountComments(post: Post): void {
           status.hidden = true;
         }
       }, 5000);
-    } catch {
-      setStatus("Não foi possível publicar o comentário.", true);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 429) {
+        setStatus("Muitos comentários em pouco tempo. Aguarde alguns minutos e tente novamente.", true);
+      } else {
+        setStatus("Não foi possível publicar o comentário.", true);
+      }
     } finally {
       submitButton.disabled = false;
     }
