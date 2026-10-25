@@ -11,6 +11,7 @@ describe("editor payloads", () => {
       thumbnail: "/uploads/image.png",
       body: "Conteúdo",
       section: "article",
+      audio: "/uploads/audio.mp3",
     };
 
     expect(toDraftInput(content, "meu-artigo")).toEqual({
@@ -28,6 +29,7 @@ describe("editor payloads", () => {
       thumbnail: "",
       body: "Conteúdo",
       section: "off-topic",
+      audio: "",
     };
     expect(toDraftInput(content, null).postSlug).toBe("");
   });

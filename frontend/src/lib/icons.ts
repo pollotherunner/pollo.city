@@ -34,7 +34,9 @@ import {
   Minus,
   Moon,
   PanelTop,
+  Pause,
   Pencil,
+  Play,
   Plus,
   Quote,
   Redo2,
@@ -49,6 +51,7 @@ import {
   Underline,
   Undo2,
   Upload,
+  Volume2,
   X,
   createIcons,
 } from "lucide";
@@ -89,7 +92,9 @@ const icons = {
   Minus,
   Moon,
   PanelTop,
+  Pause,
   Pencil,
+  Play,
   Plus,
   Quote,
   Redo2,
@@ -104,6 +109,7 @@ const icons = {
   Underline,
   Undo2,
   Upload,
+  Volume2,
   X,
 };
 

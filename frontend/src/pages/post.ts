@@ -1,5 +1,6 @@
 import { api } from "@/api/client";
 import type { Comment, Post } from "@/api/types";
+import { mountArticleAudio } from "@/lib/article-audio-player";
 import { escapeHtml, query } from "@/lib/dom";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { refreshIcons } from "@/lib/icons";
@@ -81,6 +82,11 @@ function renderArticle(post: Post): void {
     <span class="meta-icon"><i data-lucide="clock"></i>${minutes} min de leitura</span>`;
   body.innerHTML = renderMarkdown(post.body);
   enhanceContent(body);
+
+  if (post.audio) {
+    mountArticleAudio(post.audio);
+  }
+
   refreshIcons(article);
 }
 

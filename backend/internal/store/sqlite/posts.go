@@ -13,7 +13,7 @@ import (
 )
 
 func (s *Store) ListPosts(ctx context.Context) ([]domain.Post, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, slug, title, excerpt, body_markdown, thumbnail_url, published_at, section
+	rows, err := s.db.QueryContext(ctx, `SELECT id, slug, title, excerpt, body_markdown, thumbnail_url, published_at, section, audio_url
 		FROM posts ORDER BY julianday(published_at) DESC, id DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list posts: %w", err)
@@ -26,7 +26,7 @@ func (s *Store) ListPosts(ctx context.Context) ([]domain.Post, error) {
 		var id int64
 		var post domain.Post
 		var publishedAt string
-		if err := rows.Scan(&id, &post.Slug, &post.Title, &post.Excerpt, &post.Body, &post.Thumbnail, &publishedAt, &post.Section); err != nil {
+		if err := rows.Scan(&id, &post.Slug, &post.Title, &post.Excerpt, &post.Body, &post.Thumbnail, &publishedAt, &post.Section, &post.Audio); err != nil {
 			return nil, fmt.Errorf("scan post: %w", err)
 		}
 		date, err := parseStoredTime(publishedAt)
@@ -58,9 +58,9 @@ func (s *Store) GetPost(ctx context.Context, slug string) (*domain.Post, error) 
 	var id int64
 	var post domain.Post
 	var publishedAt string
-	err := s.db.QueryRowContext(ctx, `SELECT id, slug, title, excerpt, body_markdown, thumbnail_url, published_at, section
+	err := s.db.QueryRowContext(ctx, `SELECT id, slug, title, excerpt, body_markdown, thumbnail_url, published_at, section, audio_url
 		FROM posts WHERE slug = ?`, slug).
-		Scan(&id, &post.Slug, &post.Title, &post.Excerpt, &post.Body, &post.Thumbnail, &publishedAt, &post.Section)
+		Scan(&id, &post.Slug, &post.Title, &post.Excerpt, &post.Body, &post.Thumbnail, &publishedAt, &post.Section, &post.Audio)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, store.ErrNotFound
 	}
@@ -97,10 +97,11 @@ func (s *Store) CreatePost(ctx context.Context, input store.PostInput) (*domain.
 	excerpt := strings.TrimSpace(input.Excerpt)
 	now := time.Now().UTC()
 	result, err := tx.ExecContext(ctx, `INSERT INTO posts
-		(slug, title, excerpt, body_markdown, thumbnail_url, section, published_at, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		(slug, title, excerpt, body_markdown, thumbnail_url, section, audio_url, published_at, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		slug, strings.TrimSpace(input.Title), excerpt, input.Body, input.Thumbnail,
-		domain.NormalizeSection(input.Section), timeString(now), timeString(now), timeString(now))
+		domain.NormalizeSection(input.Section), strings.TrimSpace(input.Audio),
+		timeString(now), timeString(now), timeString(now))
 	if err != nil {
 		return nil, fmt.Errorf("insert post: %w", err)
 	}
@@ -133,10 +134,10 @@ func (s *Store) UpdatePost(ctx context.Context, slug string, input store.PostInp
 
 	excerpt := strings.TrimSpace(input.Excerpt)
 	if _, err := tx.ExecContext(ctx, `UPDATE posts
-		SET title = ?, excerpt = ?, body_markdown = ?, thumbnail_url = ?, section = ?, updated_at = ?
+		SET title = ?, excerpt = ?, body_markdown = ?, thumbnail_url = ?, section = ?, audio_url = ?, updated_at = ?
 		WHERE id = ?`,
 		strings.TrimSpace(input.Title), excerpt, input.Body, input.Thumbnail,
-		domain.NormalizeSection(input.Section), nowString(), postID); err != nil {
+		domain.NormalizeSection(input.Section), strings.TrimSpace(input.Audio), nowString(), postID); err != nil {
 		return nil, fmt.Errorf("update post: %w", err)
 	}
 	if err := setPostTags(ctx, tx, postID, input.Tags); err != nil {

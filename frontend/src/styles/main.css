@@ -1154,6 +1154,162 @@ body.graph-mode .graph-view {
   gap: 5px;
 }
 
+.article-audio {
+  max-width: 560px;
+  margin-top: 14px;
+  padding: 10px 12px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-alt);
+}
+
+.article-audio-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.article-audio-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.article-audio-label svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 1.6;
+}
+
+.article-audio-rate select {
+  padding: 2px 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.article-audio-rate select:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.article-audio-player {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: center;
+}
+
+.article-audio-play {
+  display: grid;
+  grid-column: 1;
+  grid-row: 1;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  transition: background 160ms var(--ease), color 160ms var(--ease);
+}
+
+.article-audio-play:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.article-audio-play svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2;
+}
+
+.article-audio-icon {
+  display: inline-flex;
+}
+
+.article-audio-icon--pause {
+  display: none;
+}
+
+.article-audio.is-playing .article-audio-icon--play {
+  display: none;
+}
+
+.article-audio.is-playing .article-audio-icon--pause {
+  display: inline-flex;
+}
+
+.article-audio-wave-wrap {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.article-audio-wave-wrap:focus-within {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.article-audio-wave {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 26px;
+}
+
+.article-audio-wave-bar {
+  flex: 0 0 2px;
+  width: 2px;
+  height: var(--bar-height);
+  border-radius: 999px;
+  background: var(--line);
+  transform-origin: center;
+  transition: background-color 160ms var(--ease);
+}
+
+.article-audio-wave-bar.is-played {
+  background: var(--ink);
+}
+
+.article-audio-seek {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.article-audio-meta {
+  display: flex;
+  grid-column: 2;
+  grid-row: 2;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
 .prose {
   width: min(calc(100% - (var(--gutter) * 2)), var(--article-width));
   margin-inline: auto;
@@ -1494,6 +1650,60 @@ body.graph-mode .graph-view {
 .editor-section-select:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
+}
+
+.editor-audio-field {
+  margin-top: 20px;
+}
+
+.editor-audio-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.editor-audio-heading .field-label {
+  margin: 0;
+}
+
+.editor-audio-status {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.editor-audio-preview {
+  display: block;
+  width: 100%;
+  height: 38px;
+  margin-top: 10px;
+}
+
+.editor-audio-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.editor-audio-actions .text-button svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.6;
+}
+
+.editor-audio-actions button:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
+.editor-audio-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .about-lede-input {

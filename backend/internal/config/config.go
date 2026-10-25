@@ -11,14 +11,15 @@ import (
 )
 
 type Config struct {
-	HTTPAddr       string
-	DatabasePath   string
-	UploadsDir     string
-	PublicDir      string
-	AdminPassword  string
-	SessionTTL     time.Duration
-	CookieSecure   bool
-	MaxUploadBytes int64
+	HTTPAddr            string
+	DatabasePath        string
+	UploadsDir          string
+	PublicDir           string
+	AdminPassword       string
+	SessionTTL          time.Duration
+	CookieSecure        bool
+	MaxUploadBytes      int64
+	MaxAudioUploadBytes int64
 }
 
 func Load() (Config, error) {
@@ -51,15 +52,25 @@ func Load() (Config, error) {
 		maxUploadMB = parsed
 	}
 
+	maxAudioUploadMB := 32
+	if value := strings.TrimSpace(os.Getenv("MAX_AUDIO_UPLOAD_MB")); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("parse MAX_AUDIO_UPLOAD_MB: %w", err)
+		}
+		maxAudioUploadMB = parsed
+	}
+
 	cfg := Config{
-		HTTPAddr:       env("HTTP_ADDR", ":8080"),
-		DatabasePath:   env("DATABASE_PATH", "data/pollo.db"),
-		UploadsDir:     env("UPLOADS_DIR", "data/uploads"),
-		PublicDir:      env("PUBLIC_DIR", "dist"),
-		AdminPassword:  strings.TrimSpace(os.Getenv("ADMIN_PASSWORD")),
-		SessionTTL:     sessionTTL,
-		CookieSecure:   cookieSecure,
-		MaxUploadBytes: int64(maxUploadMB) * 1024 * 1024,
+		HTTPAddr:            env("HTTP_ADDR", ":8080"),
+		DatabasePath:        env("DATABASE_PATH", "data/pollo.db"),
+		UploadsDir:          env("UPLOADS_DIR", "data/uploads"),
+		PublicDir:           env("PUBLIC_DIR", "dist"),
+		AdminPassword:       strings.TrimSpace(os.Getenv("ADMIN_PASSWORD")),
+		SessionTTL:          sessionTTL,
+		CookieSecure:        cookieSecure,
+		MaxUploadBytes:      int64(maxUploadMB) * 1024 * 1024,
+		MaxAudioUploadBytes: int64(maxAudioUploadMB) * 1024 * 1024,
 	}
 
 	if cfg.AdminPassword == "" {
@@ -73,6 +84,9 @@ func Load() (Config, error) {
 	}
 	if cfg.MaxUploadBytes <= 0 {
 		return Config{}, fmt.Errorf("MAX_UPLOAD_MB must be positive")
+	}
+	if cfg.MaxAudioUploadBytes <= 0 {
+		return Config{}, fmt.Errorf("MAX_AUDIO_UPLOAD_MB must be positive")
 	}
 
 	return cfg, nil
