@@ -20,6 +20,8 @@ type Config struct {
 	CookieSecure        bool
 	MaxUploadBytes      int64
 	MaxAudioUploadBytes int64
+	CommentRateLimit    int
+	CommentRateWindow   time.Duration
 }
 
 func Load() (Config, error) {
@@ -61,6 +63,24 @@ func Load() (Config, error) {
 		maxAudioUploadMB = parsed
 	}
 
+	commentRateLimit := 5
+	if value := strings.TrimSpace(os.Getenv("COMMENT_RATE_LIMIT")); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("parse COMMENT_RATE_LIMIT: %w", err)
+		}
+		commentRateLimit = parsed
+	}
+
+	commentRateWindow := 10 * time.Minute
+	if value := strings.TrimSpace(os.Getenv("COMMENT_RATE_WINDOW")); value != "" {
+		parsed, err := time.ParseDuration(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("parse COMMENT_RATE_WINDOW: %w", err)
+		}
+		commentRateWindow = parsed
+	}
+
 	cfg := Config{
 		HTTPAddr:            env("HTTP_ADDR", ":8080"),
 		DatabasePath:        env("DATABASE_PATH", "data/pollo.db"),
@@ -71,6 +91,8 @@ func Load() (Config, error) {
 		CookieSecure:        cookieSecure,
 		MaxUploadBytes:      int64(maxUploadMB) * 1024 * 1024,
 		MaxAudioUploadBytes: int64(maxAudioUploadMB) * 1024 * 1024,
+		CommentRateLimit:    commentRateLimit,
+		CommentRateWindow:   commentRateWindow,
 	}
 
 	if cfg.AdminPassword == "" {
@@ -87,6 +109,12 @@ func Load() (Config, error) {
 	}
 	if cfg.MaxAudioUploadBytes <= 0 {
 		return Config{}, fmt.Errorf("MAX_AUDIO_UPLOAD_MB must be positive")
+	}
+	if cfg.CommentRateLimit < 0 {
+		return Config{}, fmt.Errorf("COMMENT_RATE_LIMIT must be zero or positive")
+	}
+	if cfg.CommentRateWindow <= 0 {
+		return Config{}, fmt.Errorf("COMMENT_RATE_WINDOW must be positive")
 	}
 
 	return cfg, nil

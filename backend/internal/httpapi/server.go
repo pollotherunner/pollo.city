@@ -12,17 +12,24 @@ import (
 )
 
 type Server struct {
-	cfg    config.Config
-	store  store.Store
-	auth   *auth.Service
-	logger *slog.Logger
+	cfg            config.Config
+	store          store.Store
+	auth           *auth.Service
+	logger         *slog.Logger
+	commentLimiter *commentLimiter
 }
 
 func New(cfg config.Config, st store.Store, authService *auth.Service, logger *slog.Logger) (*Server, error) {
 	if err := os.MkdirAll(cfg.UploadsDir, 0o755); err != nil {
 		return nil, fmt.Errorf("create uploads directory: %w", err)
 	}
-	return &Server{cfg: cfg, store: st, auth: authService, logger: logger}, nil
+	return &Server{
+		cfg:            cfg,
+		store:          st,
+		auth:           authService,
+		logger:         logger,
+		commentLimiter: newCommentLimiter(cfg.CommentRateLimit, cfg.CommentRateWindow),
+	}, nil
 }
 
 func (s *Server) Handler() http.Handler {
