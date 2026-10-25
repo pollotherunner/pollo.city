@@ -4,6 +4,22 @@ declare module "highlight.js/lib/languages/*" {
   export default language;
 }
 
-declare module "prismjs/components/*";
+declare module "markdown-it-ins" {
+  import type MarkdownIt from "markdown-it";
 
-declare module "@toast-ui/editor/dist/i18n/pt-br";
+  const plugin: (md: MarkdownIt) => void;
+  export default plugin;
+}
+
+declare module "markdown-it-task-lists" {
+  import type MarkdownIt from "markdown-it";
+
+  interface TaskListOptions {
+    enabled?: boolean;
+    label?: boolean;
+    labelAfter?: boolean;
+  }
+
+  const plugin: (md: MarkdownIt, options?: TaskListOptions) => void;
+  export default plugin;
+}

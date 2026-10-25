@@ -1,9 +1,8 @@
-import type Editor from "@toast-ui/editor";
 import { api } from "@/api/client";
 import { byId } from "@/lib/dom";
 import { formatDateTime } from "@/lib/dates";
 import { countWords, readingMinutes } from "@/lib/strings";
-import { createMarkdownEditor } from "./markdown-editor";
+import { createMarkdownEditor, type MarkdownEditor } from "./markdown-editor";
 
 interface AboutEditorCallbacks {
   onClose(): Promise<void> | void;
@@ -20,7 +19,7 @@ export class AboutEditor {
   private readonly wordCount = byId<HTMLElement>("about-word-count");
   private readonly readTime = byId<HTMLElement>("about-read-time");
 
-  private editor: Editor | null = null;
+  private editor: MarkdownEditor | null = null;
   private dirty = false;
   private syncing = false;
 
@@ -72,7 +71,7 @@ export class AboutEditor {
     window.requestAnimationFrame(() => this.titleField.focus({ preventScroll: true }));
   }
 
-  private ensureEditor(): Editor {
+  private ensureEditor(): MarkdownEditor {
     if (this.editor) {
       return this.editor;
     }

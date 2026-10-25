@@ -5,20 +5,20 @@ import css from "highlight.js/lib/languages/css";
 import go from "highlight.js/lib/languages/go";
 import javascript from "highlight.js/lib/languages/javascript";
 import json from "highlight.js/lib/languages/json";
-import markdown from "highlight.js/lib/languages/markdown";
+import markdownLanguage from "highlight.js/lib/languages/markdown";
 import plaintext from "highlight.js/lib/languages/plaintext";
 import python from "highlight.js/lib/languages/python";
 import sql from "highlight.js/lib/languages/sql";
 import typescript from "highlight.js/lib/languages/typescript";
 import xml from "highlight.js/lib/languages/xml";
-import { marked } from "marked";
+import { markdownIt } from "./markdown-it";
 
 hljs.registerLanguage("bash", bash);
 hljs.registerLanguage("css", css);
 hljs.registerLanguage("go", go);
 hljs.registerLanguage("javascript", javascript);
 hljs.registerLanguage("json", json);
-hljs.registerLanguage("markdown", markdown);
+hljs.registerLanguage("markdown", markdownLanguage);
 hljs.registerLanguage("plaintext", plaintext);
 hljs.registerLanguage("python", python);
 hljs.registerLanguage("sql", sql);
@@ -26,15 +26,11 @@ hljs.registerLanguage("typescript", typescript);
 hljs.registerLanguage("xml", xml);
 
 export function renderMarkdown(source: string): string {
-  const html = marked.parse(source, {
-    async: false,
-    gfm: true,
-    breaks: false,
-  });
+  const html = markdownIt.render(source);
 
   return DOMPurify.sanitize(html, {
     USE_PROFILES: { html: true },
-    ADD_ATTR: ["target", "rel", "loading", "disabled", "checked"],
+    ADD_ATTR: ["target", "rel", "loading", "disabled", "checked", "align"],
     ADD_DATA_URI_TAGS: ["img"],
     FORBID_ATTR: ["style"],
   });
@@ -49,7 +45,7 @@ export function enhanceContent(container: HTMLElement): void {
   });
 
   container.querySelectorAll<HTMLImageElement>("img").forEach((image) => {
-    image.loading = "lazy";
+    image.setAttribute("loading", "lazy");
   });
 
   container.querySelectorAll<HTMLTableElement>("table").forEach((table) => {

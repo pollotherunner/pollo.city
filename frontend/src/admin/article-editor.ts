@@ -1,9 +1,8 @@
-import type Editor from "@toast-ui/editor";
 import { api } from "@/api/client";
 import type { Draft, Post, PostInput } from "@/api/types";
 import { byId } from "@/lib/dom";
 import { countWords, readingMinutes } from "@/lib/strings";
-import { createMarkdownEditor } from "./markdown-editor";
+import { createMarkdownEditor, type MarkdownEditor } from "./markdown-editor";
 import { CoverField } from "./cover-field";
 import { toDraftInput } from "./editor-payload";
 import { TagEditor } from "./tag-editor";
@@ -49,7 +48,7 @@ export class ArticleEditor {
     },
   );
 
-  private editor: Editor | null = null;
+  private editor: MarkdownEditor | null = null;
   private draftId: string | null = null;
   private postSlug: string | null = null;
   private dirty = false;
@@ -131,7 +130,7 @@ export class ArticleEditor {
     window.requestAnimationFrame(() => this.titleField.focus({ preventScroll: true }));
   }
 
-  private ensureEditor(): Editor {
+  private ensureEditor(): MarkdownEditor {
     if (this.editor) {
       return this.editor;
     }

@@ -18,8 +18,7 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "paths": {
-      "@/*": ["./frontend/src/*"],
-      "@toast-ui/editor": ["./node_modules/@toast-ui/editor/types/index.d.ts"]
+      "@/*": ["./frontend/src/*"]
     },
     "types": ["vite/client", "node"]
   },
