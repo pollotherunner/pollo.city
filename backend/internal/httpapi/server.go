@@ -59,6 +59,9 @@ func (s *Server) Handler() http.Handler {
 	})
 
 	mux.HandleFunc("GET /{$}", s.page("index.html"))
+	mux.HandleFunc("GET /off-topic", s.page("off-topic.html"))
+	mux.HandleFunc("GET /off-topic/{$}", s.permanentRedirect("/off-topic"))
+	mux.HandleFunc("GET /off-topic.html", s.permanentRedirect("/off-topic"))
 	mux.HandleFunc("GET /arquivo", s.page("arquivo.html"))
 	mux.HandleFunc("GET /sobre", s.page("sobre.html"))
 	mux.HandleFunc("GET /post/{slug}", s.page("post.html"))

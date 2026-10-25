@@ -14,6 +14,8 @@ function cleanRoutes(): Plugin {
         const [pathname = "/", search = ""] = request.url.split("?");
         const suffix = search ? `?${search}` : "";
         const pageRoutes: Record<string, string> = {
+          "/off-topic": "/off-topic.html",
+          "/off-topic/": "/off-topic.html",
           "/arquivo": "/arquivo.html",
           "/arquivo/": "/arquivo.html",
           "/sobre": "/sobre.html",
@@ -53,6 +55,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         home: fileURLToPath(new URL("./frontend/index.html", import.meta.url)),
+        offTopic: fileURLToPath(new URL("./frontend/off-topic.html", import.meta.url)),
         archive: fileURLToPath(new URL("./frontend/arquivo.html", import.meta.url)),
         post: fileURLToPath(new URL("./frontend/post.html", import.meta.url)),
         about: fileURLToPath(new URL("./frontend/sobre.html", import.meta.url)),

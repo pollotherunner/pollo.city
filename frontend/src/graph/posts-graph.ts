@@ -10,6 +10,7 @@ interface GraphNode {
   type: NodeType;
   label: string;
   slug: string;
+  offTopic: boolean;
   radius: number;
   x: number;
   y: number;
@@ -91,6 +92,7 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
       type: "post",
       label: post.title,
       slug: post.slug,
+      offTopic: post.section === "off-topic",
       radius: 7,
       x: 0,
       y: 0,
@@ -112,6 +114,7 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
           type: "tag",
           label: tag,
           slug,
+          offTopic: false,
           radius: 4.5,
           x: 0,
           y: 0,
@@ -252,9 +255,17 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
       context.globalAlpha = isDimmed ? 0.2 : 1;
       context.beginPath();
       context.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-      if (node.type === "post") {
+      if (node.type === "post" && !node.offTopic) {
         context.fillStyle = colors.post;
         context.fill();
+      } else if (node.type === "post") {
+        context.fillStyle = colors.tagFill;
+        context.fill();
+        context.strokeStyle = colors.post;
+        context.lineWidth = 1.4 / view.scale;
+        context.setLineDash([3 / view.scale, 2.5 / view.scale]);
+        context.stroke();
+        context.setLineDash([]);
       } else {
         context.fillStyle = colors.tagFill;
         context.fill();
@@ -328,7 +339,8 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
       return;
     }
     const rect = frame.getBoundingClientRect();
-    tooltip.textContent = node.type === "tag" ? `#${node.label}` : node.label;
+    tooltip.textContent =
+      node.type === "tag" ? `#${node.label}` : node.offTopic ? `Off-Topic · ${node.label}` : node.label;
     tooltip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 24)}px`;
     tooltip.style.top = `${Math.min(event.clientY - rect.top + 14, rect.height - 24)}px`;
     tooltip.hidden = false;

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"pollo.city/internal/domain"
 	"pollo.city/internal/store"
 )
 
@@ -80,6 +81,35 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	if created.Excerpt != "Resumo curto." {
 		t.Fatalf("unexpected excerpt: %q", created.Excerpt)
 	}
+	if created.Section != domain.SectionArticle {
+		t.Fatalf("unexpected default section: %q", created.Section)
+	}
+
+	offTopic, err := instance.CreatePost(ctx, store.PostInput{
+		Title:   "Fora do tema",
+		Body:    "Conteúdo off-topic.",
+		Section: domain.SectionOffTopic,
+	})
+	if err != nil {
+		t.Fatalf("create off-topic post: %v", err)
+	}
+	if offTopic.Section != domain.SectionOffTopic {
+		t.Fatalf("unexpected off-topic section: %q", offTopic.Section)
+	}
+	offTopic, err = instance.UpdatePost(ctx, offTopic.Slug, store.PostInput{
+		Title:   "Fora do tema atualizado",
+		Body:    "Conteúdo atualizado.",
+		Section: domain.SectionArticle,
+	})
+	if err != nil {
+		t.Fatalf("update off-topic post: %v", err)
+	}
+	if offTopic.Section != domain.SectionArticle {
+		t.Fatalf("unexpected updated section: %q", offTopic.Section)
+	}
+	if err := instance.DeletePost(ctx, offTopic.Slug); err != nil {
+		t.Fatalf("delete off-topic post: %v", err)
+	}
 
 	withoutExcerpt, err := instance.CreatePost(ctx, store.PostInput{
 		Title: "Sem resumo",
@@ -131,6 +161,7 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 		Excerpt:  "Resumo do rascunho.",
 		Tags:     []string{"Teste"},
 		Body:     "Rascunho de teste.",
+		Section:  domain.SectionOffTopic,
 	})
 	if err != nil {
 		t.Fatalf("create draft: %v", err)
@@ -140,6 +171,9 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	}
 	if draft.Excerpt != "Resumo do rascunho." {
 		t.Fatalf("unexpected draft excerpt: %q", draft.Excerpt)
+	}
+	if draft.Section != domain.SectionOffTopic {
+		t.Fatalf("unexpected draft section: %q", draft.Section)
 	}
 	draft, err = instance.UpdateDraft(ctx, draft.ID, store.DraftInput{
 		Title: "Rascunho atualizado",
@@ -151,6 +185,9 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	if draft.PostSlug != "" {
 		t.Fatalf("expected draft to be detached, got %s", draft.PostSlug)
 	}
+	if draft.Section != domain.SectionArticle {
+		t.Fatalf("unexpected updated draft section: %q", draft.Section)
+	}
 
 	if err := instance.DeleteDraft(ctx, draft.ID); err != nil {
 		t.Fatalf("delete draft: %v", err)
@@ -160,6 +197,40 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	}
 	if _, err := instance.GetPost(ctx, created.Slug); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestBackupPreservesSections(t *testing.T) {
+	ctx := context.Background()
+	instance, err := New(filepath.Join(t.TempDir(), "pollo.db"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer instance.Close()
+
+	if _, err := instance.CreatePost(ctx, store.PostInput{
+		Title:   "Off-topic de backup",
+		Body:    "Conteúdo.",
+		Section: domain.SectionOffTopic,
+	}); err != nil {
+		t.Fatalf("create post: %v", err)
+	}
+	backup, err := instance.Export(ctx)
+	if err != nil {
+		t.Fatalf("export backup: %v", err)
+	}
+	if len(backup.Posts) != 1 || backup.Posts[0].Section != domain.SectionOffTopic {
+		t.Fatalf("backup did not preserve section: %+v", backup.Posts)
+	}
+	if err := instance.Import(ctx, backup); err != nil {
+		t.Fatalf("import backup: %v", err)
+	}
+	posts, err := instance.ListPosts(ctx)
+	if err != nil {
+		t.Fatalf("list imported posts: %v", err)
+	}
+	if len(posts) != 1 || posts[0].Section != domain.SectionOffTopic {
+		t.Fatalf("import did not preserve section: %+v", posts)
 	}
 }
 

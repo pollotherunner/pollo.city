@@ -1,3 +1,5 @@
+export type Section = "article" | "off-topic";
+
 export interface Post {
   slug: string;
   title: string;
@@ -6,6 +8,7 @@ export interface Post {
   date: string;
   thumbnail: string;
   body: string;
+  section: Section;
 }
 
 export interface Comment {
@@ -23,6 +26,7 @@ export interface Draft {
   tags: string[];
   thumbnail: string;
   body: string;
+  section: Section;
   updatedAt: string;
 }
 
@@ -61,6 +65,7 @@ export interface PostInput {
   tags: string[];
   thumbnail: string;
   body: string;
+  section: Section;
 }
 
 export interface DraftInput {
@@ -70,6 +75,7 @@ export interface DraftInput {
   tags: string[];
   thumbnail: string;
   body: string;
+  section: Section;
 }
 
 export interface CommentInput {

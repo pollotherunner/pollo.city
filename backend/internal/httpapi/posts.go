@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"pollo.city/internal/domain"
 	"pollo.city/internal/store"
 )
 
@@ -13,15 +14,33 @@ type postRequest struct {
 	Tags      []string `json:"tags"`
 	Thumbnail string   `json:"thumbnail"`
 	Body      string   `json:"body"`
+	Section   string   `json:"section"`
 }
 
 func (s *Server) listPosts(w http.ResponseWriter, r *http.Request) {
+	section := strings.TrimSpace(r.URL.Query().Get("section"))
+	if section != "" && !domain.ValidSection(section) {
+		writeError(w, http.StatusBadRequest, "invalid section")
+		return
+	}
+
 	posts, err := s.store.ListPosts(r.Context())
 	if err != nil {
 		s.logError("list posts failed", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+
+	if section != "" {
+		filtered := make([]domain.Post, 0, len(posts))
+		for _, post := range posts {
+			if post.Section == section {
+				filtered = append(filtered, post)
+			}
+		}
+		posts = filtered
+	}
+
 	writeJSON(w, http.StatusOK, map[string]any{"posts": posts})
 }
 
@@ -58,6 +77,7 @@ func (s *Server) createPost(w http.ResponseWriter, r *http.Request) {
 		Tags:      request.Tags,
 		Thumbnail: strings.TrimSpace(request.Thumbnail),
 		Body:      request.Body,
+		Section:   request.Section,
 	})
 	if err != nil {
 		s.writeStoreError(w, err)
@@ -80,6 +100,7 @@ func (s *Server) updatePost(w http.ResponseWriter, r *http.Request) {
 		Tags:      request.Tags,
 		Thumbnail: strings.TrimSpace(request.Thumbnail),
 		Body:      request.Body,
+		Section:   request.Section,
 	})
 	if err != nil {
 		s.writeStoreError(w, err)
@@ -120,6 +141,11 @@ func validatePost(w http.ResponseWriter, request postRequest) bool {
 	}
 	if len([]rune(request.Thumbnail)) > 2048 {
 		writeError(w, http.StatusBadRequest, "thumbnail is too long")
+		return false
+	}
+	section := strings.TrimSpace(request.Section)
+	if section != "" && !domain.ValidSection(section) {
+		writeError(w, http.StatusBadRequest, "invalid section")
 		return false
 	}
 	return true

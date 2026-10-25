@@ -1,9 +1,10 @@
 import { api } from "@/api/client";
-import type { Draft, Post } from "@/api/types";
+import type { Draft, Post, Section } from "@/api/types";
 import { byId, escapeHtml } from "@/lib/dom";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { refreshIcons } from "@/lib/icons";
 import { DEFAULT_THUMBNAIL } from "@/lib/constants";
+import { isOffTopic } from "@/lib/sections";
 
 interface DashboardCallbacks {
   onNewArticle(): void;
@@ -20,12 +21,24 @@ export class Dashboard {
   private readonly draftsCount = byId<HTMLElement>("drafts-count");
   private readonly newArticleButton = byId<HTMLButtonElement>("new-article-button");
   private readonly editAboutButton = byId<HTMLButtonElement>("edit-about-button");
+  private readonly sectionFilter = byId<HTMLSelectElement>("section-filter");
+
+  private posts: Post[] = [];
+  private drafts: Draft[] = [];
+  private selectedSection: Section | "all" = "all";
 
   constructor(private readonly callbacks: DashboardCallbacks) {}
 
   mount(): void {
     this.newArticleButton.addEventListener("click", () => this.callbacks.onNewArticle());
     this.editAboutButton.addEventListener("click", () => this.callbacks.onEditAbout());
+    this.sectionFilter.addEventListener("change", () => {
+      this.selectedSection =
+        this.sectionFilter.value === "article" || this.sectionFilter.value === "off-topic"
+          ? this.sectionFilter.value
+          : "all";
+      this.render();
+    });
     this.publishedList.addEventListener("click", (event) => {
       void this.handlePostAction(event);
     });
@@ -36,16 +49,30 @@ export class Dashboard {
 
   async refresh(): Promise<void> {
     try {
-      const [posts, drafts] = await Promise.all([api.getPosts(), api.getDrafts()]);
-      this.renderPosts(posts);
-      this.renderDrafts(drafts);
+      [this.posts, this.drafts] = await Promise.all([api.getPosts(), api.getDrafts()]);
+      this.render();
     } catch {
+      this.posts = [];
+      this.drafts = [];
       this.publishedCount.textContent = "0";
       this.draftsCount.textContent = "0";
       this.publishedList.innerHTML = '<p class="admin-empty">Não foi possível carregar os artigos.</p>';
       this.draftsList.innerHTML = '<p class="admin-empty">Não foi possível carregar os rascunhos.</p>';
     }
     refreshIcons();
+  }
+
+  private render(): void {
+    const matches = <T extends { section: Section }>(items: T[]): T[] =>
+      this.selectedSection === "all" ? items : items.filter((item) => item.section === this.selectedSection);
+
+    this.renderPosts(matches(this.posts));
+    this.renderDrafts(matches(this.drafts));
+    refreshIcons();
+  }
+
+  private sectionBadge(section: Section): string {
+    return isOffTopic(section) ? '<span class="admin-section-badge">Off-Topic</span>' : "";
   }
 
   private renderPosts(posts: Post[]): void {
@@ -57,7 +84,7 @@ export class Dashboard {
               <img class="admin-item-thumb" src="${escapeHtml(post.thumbnail || DEFAULT_THUMBNAIL)}" alt="" loading="lazy">
               <div class="admin-item-copy">
                 <h3 class="admin-item-title">${escapeHtml(post.title)}</h3>
-                <p class="admin-item-meta">${post.tags
+                <p class="admin-item-meta">${this.sectionBadge(post.section)}${post.tags
                   .map((tag) => `<span>${escapeHtml(tag)}</span>`)
                   .join("")}<time datetime="${escapeHtml(post.date)}">${formatDate(post.date)}</time></p>
               </div>
@@ -69,7 +96,7 @@ export class Dashboard {
             </article>`,
           )
           .join("")
-      : '<p class="admin-empty">Nenhum artigo publicado.</p>';
+      : '<p class="admin-empty">Nenhum artigo nesta seção.</p>';
   }
 
   private renderDrafts(drafts: Draft[]): void {
@@ -81,7 +108,7 @@ export class Dashboard {
               <img class="admin-item-thumb" src="${escapeHtml(draft.thumbnail || DEFAULT_THUMBNAIL)}" alt="" loading="lazy">
               <div class="admin-item-copy">
                 <h3 class="admin-item-title">${escapeHtml(draft.title || "Sem título")}</h3>
-                <p class="admin-item-meta">${draft.tags
+                <p class="admin-item-meta">${this.sectionBadge(draft.section)}${draft.tags
                   .map((tag) => `<span>${escapeHtml(tag)}</span>`)
                   .join("")}<span>Rascunho</span><span>${formatDateTime(draft.updatedAt)}</span></p>
               </div>
@@ -92,7 +119,7 @@ export class Dashboard {
             </article>`,
           )
           .join("")
-      : '<p class="admin-empty">Nenhum rascunho.</p>';
+      : '<p class="admin-empty">Nenhum rascunho nesta seção.</p>';
   }
 
   private async handlePostAction(event: MouseEvent): Promise<void> {

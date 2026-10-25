@@ -10,6 +10,7 @@ type Post struct {
 	Date      string   `json:"date"`
 	Thumbnail string   `json:"thumbnail"`
 	Body      string   `json:"body"`
+	Section   string   `json:"section"`
 }
 
 type Comment struct {
@@ -34,6 +35,7 @@ type Draft struct {
 	Tags      []string  `json:"tags"`
 	Thumbnail string    `json:"thumbnail"`
 	Body      string    `json:"body"`
+	Section   string    `json:"section"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
