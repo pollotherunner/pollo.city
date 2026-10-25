@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -13,12 +15,15 @@ import (
 
 	"pollo.city/internal/auth"
 	"pollo.city/internal/config"
+	"pollo.city/internal/domain"
+	"pollo.city/internal/store"
 	"pollo.city/internal/store/sqlite"
 )
 
 func TestPageRoutes(t *testing.T) {
 	pagesDir := t.TempDir()
 	writePage(t, pagesDir, "index.html", "index page")
+	writePage(t, pagesDir, "off-topic.html", "off-topic page")
 	writePage(t, pagesDir, "arquivo.html", "archive page")
 	writePage(t, pagesDir, "sobre.html", "about page")
 	writePage(t, pagesDir, "post.html", "post page")
@@ -52,6 +57,9 @@ func TestPageRoutes(t *testing.T) {
 		{name: "root", method: http.MethodGet, target: "/", status: http.StatusOK, bodyContains: "index page"},
 		{name: "index legacy html", method: http.MethodGet, target: "/index.html", status: http.StatusMovedPermanently, location: "/"},
 		{name: "index legacy html with query", method: http.MethodGet, target: "/index.html?tag=go", status: http.StatusMovedPermanently, location: "/?tag=go"},
+		{name: "off-topic clean route", method: http.MethodGet, target: "/off-topic", status: http.StatusOK, bodyContains: "off-topic page"},
+		{name: "off-topic trailing slash", method: http.MethodGet, target: "/off-topic/", status: http.StatusMovedPermanently, location: "/off-topic"},
+		{name: "off-topic legacy html", method: http.MethodGet, target: "/off-topic.html", status: http.StatusMovedPermanently, location: "/off-topic"},
 		{name: "archive clean route", method: http.MethodGet, target: "/arquivo", status: http.StatusOK, bodyContains: "archive page"},
 		{name: "archive legacy html", method: http.MethodGet, target: "/arquivo.html", status: http.StatusMovedPermanently, location: "/arquivo"},
 		{name: "about clean route", method: http.MethodGet, target: "/sobre", status: http.StatusOK, bodyContains: "about page"},
@@ -86,6 +94,63 @@ func TestPageRoutes(t *testing.T) {
 				t.Fatalf("expected body to contain %q, got %q", test.bodyContains, recorder.Body.String())
 			}
 		})
+	}
+}
+
+func TestListPostsSectionFilter(t *testing.T) {
+	database, err := sqlite.New(filepath.Join(t.TempDir(), "pollo.db"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer database.Close()
+
+	ctx := context.Background()
+	if _, err := database.CreatePost(ctx, store.PostInput{
+		Title: "Artigo",
+		Body:  "Conteúdo do artigo.",
+	}); err != nil {
+		t.Fatalf("create article: %v", err)
+	}
+	if _, err := database.CreatePost(ctx, store.PostInput{
+		Title:   "Off-topic",
+		Body:    "Conteúdo off-topic.",
+		Section: domain.SectionOffTopic,
+	}); err != nil {
+		t.Fatalf("create off-topic: %v", err)
+	}
+
+	cfg := config.Config{
+		PublicDir:  t.TempDir(),
+		UploadsDir: t.TempDir(),
+		SessionTTL: time.Hour,
+	}
+	server, err := New(cfg, database, auth.New(database, "password123", time.Hour), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatalf("create server: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/posts?section=off-topic", nil)
+	recorder := httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+	var payload struct {
+		Posts []domain.Post `json:"posts"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode posts: %v", err)
+	}
+	if len(payload.Posts) != 1 || payload.Posts[0].Section != domain.SectionOffTopic {
+		t.Fatalf("unexpected filtered posts: %+v", payload.Posts)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/api/posts?section=invalid", nil)
+	recorder = httptest.NewRecorder()
+	server.Handler().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", recorder.Code)
 	}
 }
 

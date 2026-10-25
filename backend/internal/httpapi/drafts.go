@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"pollo.city/internal/domain"
 	"pollo.city/internal/store"
 )
 
@@ -14,6 +15,7 @@ type draftRequest struct {
 	Tags      []string `json:"tags"`
 	Thumbnail string   `json:"thumbnail"`
 	Body      string   `json:"body"`
+	Section   string   `json:"section"`
 }
 
 func (s *Server) listDrafts(w http.ResponseWriter, r *http.Request) {
@@ -41,6 +43,7 @@ func (s *Server) createDraft(w http.ResponseWriter, r *http.Request) {
 		Tags:      request.Tags,
 		Thumbnail: strings.TrimSpace(request.Thumbnail),
 		Body:      request.Body,
+		Section:   request.Section,
 	})
 	if err != nil {
 		s.writeStoreError(w, err)
@@ -64,6 +67,7 @@ func (s *Server) updateDraft(w http.ResponseWriter, r *http.Request) {
 		Tags:      request.Tags,
 		Thumbnail: strings.TrimSpace(request.Thumbnail),
 		Body:      request.Body,
+		Section:   request.Section,
 	})
 	if err != nil {
 		s.writeStoreError(w, err)
@@ -99,6 +103,11 @@ func validateDraft(w http.ResponseWriter, request draftRequest) bool {
 	}
 	if len([]rune(request.Thumbnail)) > 2048 {
 		writeError(w, http.StatusBadRequest, "thumbnail is too long")
+		return false
+	}
+	section := strings.TrimSpace(request.Section)
+	if section != "" && !domain.ValidSection(section) {
+		writeError(w, http.StatusBadRequest, "invalid section")
 		return false
 	}
 	return true

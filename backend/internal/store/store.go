@@ -19,6 +19,7 @@ type PostInput struct {
 	Tags      []string
 	Thumbnail string
 	Body      string
+	Section   string
 }
 
 type DraftInput struct {
@@ -28,6 +29,7 @@ type DraftInput struct {
 	Tags      []string
 	Thumbnail string
 	Body      string
+	Section   string
 }
 
 type CommentInput struct {
