@@ -626,6 +626,36 @@ body:has(.search-dialog[open]) {
   color: var(--paper);
 }
 
+.section-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 16px 0 2px;
+}
+
+.post-section-badge,
+.article-section,
+.archive-section-badge,
+.search-section-badge,
+.admin-section-badge {
+  display: inline-flex;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.article-section:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
 .post-list {
   margin: 0;
   padding: 0;
@@ -891,6 +921,11 @@ body.graph-mode .graph-view {
 .legend-dot--tag {
   border: 1px solid var(--ink);
   background: var(--paper);
+}
+
+.legend-dot--offtopic {
+  border: 1px dashed var(--ink);
+  background: transparent;
 }
 
 .empty-state {
@@ -1434,6 +1469,33 @@ body.graph-mode .graph-view {
   margin-bottom: 8px;
 }
 
+.editor-section-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.editor-section-field .field-label {
+  margin: 0;
+}
+
+.editor-section-select {
+  width: auto;
+  min-width: 160px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.editor-section-select:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
 .about-lede-input {
   min-height: 112px;
 }
@@ -1803,6 +1865,23 @@ textarea.input {
 
 .admin-tools + .publish-feedback {
   margin-top: 18px;
+}
+
+.admin-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-filter select {
+  padding: 2px 5px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 12.5px;
 }
 
 .admin-group {
@@ -2309,7 +2388,8 @@ textarea.input {
     font-size: 12.5px;
   }
 
-  .tag-filter {
+  .tag-filter,
+  .section-filter {
     gap: 6px;
     padding-top: 13px;
   }

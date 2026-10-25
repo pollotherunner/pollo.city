@@ -6,6 +6,7 @@ function activeAttribute(current: boolean): string {
 
 export function mountHeader(host: HTMLElement, page: PageKind): void {
   const blogCurrent = page === "home" || page === "post";
+  const offTopicCurrent = page === "off-topic";
   const archiveCurrent = page === "archive";
   const aboutCurrent = page === "about";
 
@@ -14,6 +15,7 @@ export function mountHeader(host: HTMLElement, page: PageKind): void {
       <a class="brand" href="/" aria-label="pollo.city, página inicial">pollo.city</a>
       <nav class="nav-links" aria-label="Principal">
         <a href="/"${activeAttribute(blogCurrent)}>Blog</a>
+        <a href="/off-topic"${activeAttribute(offTopicCurrent)}>Off-Topic</a>
         <a href="/arquivo"${activeAttribute(archiveCurrent)}>Arquivo</a>
         <a href="/sobre"${activeAttribute(aboutCurrent)}>Sobre</a>
         <button class="search-toggle" type="button" aria-label="Buscar artigos" title="Buscar artigos" aria-haspopup="dialog" aria-expanded="false" aria-controls="site-search-dialog"><i data-lucide="search"></i></button>

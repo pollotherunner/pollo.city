@@ -4,6 +4,7 @@ import { escapeHtml, query } from "@/lib/dom";
 import { formatDate, formatDateTime } from "@/lib/dates";
 import { refreshIcons } from "@/lib/icons";
 import { enhanceContent, renderMarkdown } from "@/lib/markdown";
+import { isOffTopic } from "@/lib/sections";
 import { initials, readingMinutes } from "@/lib/strings";
 import { tagSlug } from "@/lib/tags";
 import { mountSiteChrome } from "@/ui/chrome";
@@ -51,16 +52,27 @@ function renderArticle(post: Post): void {
   document.title = `${post.title} — pollo.city`;
   document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute("content", post.excerpt || post.title);
 
+  const tagBase = isOffTopic(post.section) ? "/off-topic" : "/";
   const tagLinks = post.tags.length
     ? `<span class="article-tags">${post.tags
         .map(
           (tag) =>
-            `<a class="article-tag" href="/?tag=${encodeURIComponent(tagSlug(tag))}">${escapeHtml(tag)}</a>`,
+            `<a class="article-tag" href="${tagBase}?tag=${encodeURIComponent(tagSlug(tag))}">${escapeHtml(tag)}</a>`,
         )
         .join("")}</span>`
     : "";
 
-  metaHost.innerHTML = `<time datetime="${escapeHtml(post.date)}">${formatDate(post.date)}</time>${tagLinks}`;
+  const section = isOffTopic(post.section)
+    ? '<a class="article-section" href="/off-topic">Off-Topic</a>'
+    : "";
+  metaHost.innerHTML = `<time datetime="${escapeHtml(post.date)}">${formatDate(post.date)}</time>${section}${tagLinks}`;
+
+  const backLink = query<HTMLAnchorElement>(".back-link");
+  if (isOffTopic(post.section)) {
+    backLink.href = "/off-topic";
+    backLink.innerHTML = '<i data-lucide="arrow-left"></i>Voltar ao Off-Topic';
+  }
+
   title.textContent = post.title;
   deck.textContent = post.excerpt;
   deck.hidden = !post.excerpt;

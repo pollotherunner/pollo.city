@@ -3,6 +3,7 @@ import type { Post } from "@/api/types";
 import { escapeHtml, query } from "@/lib/dom";
 import { formatDate } from "@/lib/dates";
 import { refreshIcons } from "@/lib/icons";
+import { isOffTopic } from "@/lib/sections";
 import { normalizeSearch } from "@/lib/strings";
 
 export class SearchDialog {
@@ -86,7 +87,9 @@ export class SearchDialog {
         (post) => `<a class="search-result" href="/post/${encodeURIComponent(post.slug)}">
           <span class="search-result-copy">
             <span class="search-result-title">${escapeHtml(post.title)}</span>
-            <span class="search-result-meta">${post.tags
+            <span class="search-result-meta">${
+              isOffTopic(post.section) ? '<span class="search-section-badge">Off-Topic</span>' : ""
+            }${post.tags
               .slice(0, 3)
               .map((tag) => `<span>${escapeHtml(tag)}</span>`)
               .join("")}<time datetime="${escapeHtml(post.date)}">${formatDate(post.date)}</time></span>
