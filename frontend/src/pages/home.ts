@@ -90,6 +90,9 @@ function setView(view: "default" | "graph"): void {
 
 updateGraphTop();
 window.addEventListener("resize", updateGraphTop);
+if (typeof ResizeObserver === "function") {
+  new ResizeObserver(updateGraphTop).observe(siteHeader);
+}
 list.innerHTML = '<p class="empty-state">Carregando artigos…</p>';
 tagFilter.hidden = true;
 
