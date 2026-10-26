@@ -66,7 +66,7 @@ export class AboutEditor {
 
     this.dirty = false;
     if (this.editor) {
-      this.setSaveState(about.updatedAt ? `Atualizado em ${formatDateTime(about.updatedAt)}` : "Conteúdo padrão");
+      this.setSaveState(about.updatedAt ? `Atualizado em ${formatDateTime(about.updatedAt)}` : "");
     }
     window.requestAnimationFrame(() => this.titleField.focus({ preventScroll: true }));
   }

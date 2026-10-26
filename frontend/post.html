@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Artigo — pollo.city</title>
-  <meta name="description" content="Um artigo do pollo.city.">
+  <title>pollo.city</title>
+  <meta name="description" content="">
   <meta name="theme-color" content="#ffffff">
   <script src="/assets/theme-init.js"></script>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -16,7 +16,7 @@
 
   <main id="conteudo">
     <div class="reading-progress" aria-hidden="true"><span data-progress-bar></span></div>
-    <article id="article">
+    <article id="article" hidden>
       <header class="article-head">
         <a class="back-link" href="/#artigos"><i data-lucide="arrow-left"></i>Voltar aos artigos</a>
         <div class="article-meta" id="article-meta"></div>
@@ -59,7 +59,7 @@
       <div class="prose" id="article-body"></div>
     </article>
 
-    <section class="comments-section" id="comentarios" aria-labelledby="comments-title">
+    <section class="comments-section" id="comentarios" aria-labelledby="comments-title" hidden>
       <div class="comments-inner">
         <header class="comments-heading">
           <h2 class="comments-title" id="comments-title">Comentários <span class="comment-count" data-comment-count>0</span></h2>

@@ -40,6 +40,7 @@ function renderNotFound(message: string): void {
     <a class="button" href="/#artigos">Voltar aos artigos <i data-lucide="arrow-left"></i></a>
   </div>`;
   refreshIcons(article);
+  article.hidden = false;
 }
 
 function renderArticle(post: Post): void {
@@ -88,6 +89,7 @@ function renderArticle(post: Post): void {
   }
 
   refreshIcons(article);
+  article.hidden = false;
 }
 
 function renderComments(comments: Comment[], highlightId?: number): void {
@@ -144,6 +146,7 @@ function renderComments(comments: Comment[], highlightId?: number): void {
 }
 
 function mountComments(post: Post): void {
+  commentsSection.hidden = false;
   const form = query<HTMLFormElement>("#comment-form");
   const nameField = query<HTMLInputElement>("#comment-name");
   const bodyField = query<HTMLTextAreaElement>("#comment-body");
