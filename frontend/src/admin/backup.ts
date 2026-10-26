@@ -25,8 +25,7 @@ export class BackupController {
 
   private async exportData(): Promise<void> {
     try {
-      const backup = await api.exportBackup();
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      const blob = await api.exportBackupArchive();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       const date = new Date();
@@ -36,7 +35,7 @@ export class BackupController {
         String(date.getDate()).padStart(2, "0"),
       ].join("-");
       link.href = url;
-      link.download = `pollo-city-${datePart}.json`;
+      link.download = `pollo-city-${datePart}.zip`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -54,11 +53,15 @@ export class BackupController {
     }
 
     try {
-      const payload = JSON.parse(await file.text()) as Backup;
       if (!window.confirm("Substituir os dados atuais pelos do arquivo?")) {
         return;
       }
-      await api.importBackup(payload);
+      if (file.name.toLowerCase().endsWith(".json")) {
+        const payload = JSON.parse(await file.text()) as Backup;
+        await api.importBackup(payload);
+      } else {
+        await api.importBackupArchive(file);
+      }
       window.location.reload();
     } catch {
       this.callbacks.onError("Não foi possível importar os dados.");

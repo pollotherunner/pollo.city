@@ -21,6 +21,8 @@ interface MarkdownEditorOptions {
   placeholder: string;
   onChange(): void;
   onError(message: string): void;
+  onUploadStart?(): void;
+  onUploadEnd?(): void;
 }
 
 const linkType = editorSchema.marks.link!;
@@ -145,10 +147,12 @@ export function createMarkdownEditor(options: MarkdownEditorOptions): MarkdownEd
 
   const uploadImage = (file: File | Blob, position?: number): void => {
     const alt = file instanceof File ? sanitizeAlt(file.name) : "imagem";
+    options.onUploadStart?.();
     api
       .uploadImage(file)
       .then((url) => insertImageAt(url, alt, position))
-      .catch(() => options.onError("Não foi possível carregar a imagem."));
+      .catch(() => options.onError("Não foi possível carregar a imagem."))
+      .finally(() => options.onUploadEnd?.());
   };
 
   const handleImagePaste = (_targetView: EditorView, event: ClipboardEvent): boolean => {

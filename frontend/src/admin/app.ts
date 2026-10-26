@@ -36,7 +36,10 @@ export class AdminApp {
   private readonly auth = new AuthView({
     onAuthenticated: () => this.showDashboard(),
     onLogout: () => this.showLogin(),
+    onLogoutError: (message) => this.feedback.show(message, undefined, true),
   });
+  private handlingUnauthorized = false;
+  private openRequest = 0;
 
   async start(): Promise<void> {
     this.articleEditor.mount();
@@ -45,6 +48,7 @@ export class AdminApp {
     this.backup.mount();
     this.auth.mount();
     this.bindBeforeUnload();
+    this.bindUnauthorized();
     refreshIcons();
 
     if (await this.auth.restoreSession()) {
@@ -62,29 +66,40 @@ export class AdminApp {
   }
 
   private async showDashboard(): Promise<void> {
+    this.openRequest += 1;
     this.feedback.hide();
     this.layout.showDashboard();
     await this.dashboard.refresh();
   }
 
   private async openNewArticle(): Promise<void> {
+    this.openRequest += 1;
     this.layout.showArticleEditor();
     await this.articleEditor.open(null);
   }
 
   private async openDraft(draft: Draft): Promise<void> {
+    this.openRequest += 1;
     this.layout.showArticleEditor();
     await this.articleEditor.open({ kind: "draft", draft });
   }
 
   private async openPost(slug: string): Promise<void> {
+    const request = ++this.openRequest;
     try {
       const draft = await api.getDraftForPost(slug);
+      if (request !== this.openRequest) {
+        return;
+      }
       if (draft) {
-        await this.openDraft(draft);
+        this.layout.showArticleEditor();
+        await this.articleEditor.open({ kind: "draft", draft });
         return;
       }
       const post = await api.getPost(slug);
+      if (request !== this.openRequest) {
+        return;
+      }
       if (!post) {
         this.feedback.show("Não foi possível abrir o artigo.", undefined, true);
         return;
@@ -93,7 +108,9 @@ export class AdminApp {
       this.layout.showArticleEditor();
       await this.articleEditor.open(source);
     } catch {
-      this.feedback.show("Não foi possível abrir o artigo.", undefined, true);
+      if (request === this.openRequest) {
+        this.feedback.show("Não foi possível abrir o artigo.", undefined, true);
+      }
     }
   }
 
@@ -110,6 +127,22 @@ export class AdminApp {
   private async handlePublished(post: Post): Promise<void> {
     await this.showDashboard();
     this.feedback.show("Artigo publicado.", { slug: post.slug });
+  }
+
+  private bindUnauthorized(): void {
+    window.addEventListener("pollo:unauthorized", () => {
+      if (this.handlingUnauthorized) {
+        return;
+      }
+      this.handlingUnauthorized = true;
+      this.feedback.hide();
+      this.layout.showLogin();
+      this.auth.clearPassword();
+      this.auth.showSessionExpired();
+      window.setTimeout(() => {
+        this.handlingUnauthorized = false;
+      }, 1000);
+    });
   }
 
   private bindBeforeUnload(): void {

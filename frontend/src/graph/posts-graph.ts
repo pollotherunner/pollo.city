@@ -11,6 +11,7 @@ interface GraphNode {
   label: string;
   slug: string;
   offTopic: boolean;
+  tagPath?: "/" | "/off-topic";
   radius: number;
   x: number;
   y: number;
@@ -70,9 +71,11 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
   }
 
   const tooltip = query<HTMLElement>("#graph-tooltip");
+  const accessibleLinks = document.getElementById("graph-links");
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
   const tagNodes = new Map<string, GraphNode>();
+  const tagSections = new Map<string, { article: boolean; offTopic: boolean }>();
   const adjacency = new Map<GraphNode, Set<GraphNode>>();
   const view: View = { x: 0, y: 0, scale: 1 };
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -86,6 +89,8 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
   let hovered: GraphNode | null = null;
   let pointer: PointerState | null = null;
   let moved = false;
+  const touches = new Map<number, { x: number; y: number }>();
+  let pinch: { distance: number; scale: number; worldX: number; worldY: number } | null = null;
 
   posts.forEach((post) => {
     const node: GraphNode = {
@@ -107,6 +112,14 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
       if (!slug) {
         return;
       }
+
+      const sections = tagSections.get(slug) ?? { article: false, offTopic: false };
+      if (post.section === "off-topic") {
+        sections.offTopic = true;
+      } else {
+        sections.article = true;
+      }
+      tagSections.set(slug, sections);
 
       let tagNode = tagNodes.get(slug);
       if (!tagNode) {
@@ -131,6 +144,24 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
       adjacency.get(tagNode)?.add(node);
     });
   });
+
+  tagNodes.forEach((node, slug) => {
+    node.tagPath = tagSections.get(slug)?.article ? "/" : "/off-topic";
+  });
+
+  if (accessibleLinks) {
+    nodes.forEach((node) => {
+      const item = document.createElement("li");
+      const link = document.createElement("a");
+      link.textContent = node.type === "tag" ? `#${node.label}` : node.label;
+      link.href =
+        node.type === "post"
+          ? `/post/${encodeURIComponent(node.slug)}`
+          : `${node.tagPath ?? "/"}?tag=${encodeURIComponent(node.slug)}`;
+      item.appendChild(link);
+      accessibleLinks.appendChild(item);
+    });
+  }
 
   const tagCounts = new Map<GraphNode, number>();
   edges.forEach((edge) => {
@@ -176,7 +207,8 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
     );
   };
 
-  const simulate = (): void => {
+  const simulate = (): number => {
+    let motion = 0;
     nodes.forEach((node) => {
       if (pointer?.kind === "node" && pointer.node === node) {
         return;
@@ -228,7 +260,9 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
       node.vy = Math.max(-7, Math.min(7, node.vy * 0.9));
       node.x += node.vx;
       node.y += node.vy;
+      motion += Math.abs(node.vx) + Math.abs(node.vy);
     });
+    return motion;
   };
 
   const draw = (): void => {
@@ -301,13 +335,35 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
     context.restore();
   };
 
+  let idleFrames = 0;
   const animate = (): void => {
     if (!running) {
       return;
     }
-    simulate();
+    const motion = simulate();
     draw();
+    if (motion < 0.25) {
+      idleFrames += 1;
+      if (idleFrames > 45) {
+        running = false;
+        return;
+      }
+    } else {
+      idleFrames = 0;
+    }
     frameId = window.requestAnimationFrame(animate);
+  };
+
+  const zoomAtCenter = (factor: number): void => {
+    const nextScale = Math.max(0.45, Math.min(2.2, view.scale * factor));
+    const worldX = -view.x / view.scale;
+    const worldY = -view.y / view.scale;
+    view.x = -worldX * nextScale;
+    view.y = -worldY * nextScale;
+    view.scale = nextScale;
+    if (!running) {
+      draw();
+    }
   };
 
   const start = (): void => {
@@ -317,13 +373,14 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
     running = true;
     resize();
     if (reduceMotion) {
-      for (let index = 0; index < 240; index += 1) {
+      for (let index = 0; index < 90; index += 1) {
         simulate();
       }
       draw();
       running = false;
       return;
     }
+    idleFrames = 0;
     frameId = window.requestAnimationFrame(animate);
   };
 
@@ -341,12 +398,40 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
     const rect = frame.getBoundingClientRect();
     tooltip.textContent =
       node.type === "tag" ? `#${node.label}` : node.offTopic ? `Off-Topic · ${node.label}` : node.label;
-    tooltip.style.left = `${Math.min(event.clientX - rect.left + 14, rect.width - 24)}px`;
-    tooltip.style.top = `${Math.min(event.clientY - rect.top + 14, rect.height - 24)}px`;
     tooltip.hidden = false;
+    const width = tooltip.offsetWidth;
+    const height = tooltip.offsetHeight;
+    const left = Math.max(8, Math.min(event.clientX - rect.left + 14, rect.width - width - 8));
+    const top = Math.max(8, Math.min(event.clientY - rect.top + 14, rect.height - height - 8));
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
   };
 
   canvas.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "touch" && (!event.isPrimary || event.button !== 0)) {
+      return;
+    }
+    if (event.pointerType === "touch") {
+      touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      canvas.setPointerCapture(event.pointerId);
+      if (touches.size === 2) {
+        const [first, second] = [...touches.values()];
+        if (first && second) {
+          const midX = (first.x + second.x) / 2;
+          const midY = (first.y + second.y) / 2;
+          const world = screenToWorld(midX, midY);
+          pinch = {
+            distance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
+            scale: view.scale,
+            worldX: world.x,
+            worldY: world.y,
+          };
+        }
+        pointer = null;
+        tooltip.hidden = true;
+        return;
+      }
+    }
     const node = nodeAt(event.clientX, event.clientY);
     moved = false;
     pointer = node
@@ -364,6 +449,28 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
   });
 
   canvas.addEventListener("pointermove", (event) => {
+    if (touches.has(event.pointerId)) {
+      touches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
+    if (pinch) {
+      const [first, second] = [...touches.values()];
+      if (first && second) {
+        const distance = Math.max(1, Math.hypot(second.x - first.x, second.y - first.y));
+        const nextScale = Math.max(0.45, Math.min(2.2, pinch.scale * (distance / pinch.distance)));
+        const rect = canvas.getBoundingClientRect();
+        const midX = (first.x + second.x) / 2 - rect.left;
+        const midY = (first.y + second.y) / 2 - rect.top;
+        view.scale = nextScale;
+        view.x = midX - width / 2 - pinch.worldX * nextScale;
+        view.y = midY - height / 2 - pinch.worldY * nextScale;
+        if (!running) {
+          draw();
+        }
+        return;
+      }
+      pinch = null;
+    }
+
     if (pointer) {
       const dx = event.clientX - pointer.startX;
       const dy = event.clientY - pointer.startY;
@@ -396,15 +503,21 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
   });
 
   canvas.addEventListener("pointerup", (event) => {
-    if (pointer?.kind === "node" && !moved) {
+    touches.delete(event.pointerId);
+    if (touches.size < 2) {
+      pinch = null;
+    }
+    if (event.button === 0 && pointer?.kind === "node" && !moved) {
       window.location.href =
         pointer.node.type === "post"
           ? `/post/${encodeURIComponent(pointer.node.slug)}`
-          : `/?tag=${encodeURIComponent(pointer.node.slug)}`;
+          : `${pointer.node.tagPath ?? "/"}?tag=${encodeURIComponent(pointer.node.slug)}`;
     }
     pointer = null;
     canvas.style.cursor = hovered ? "pointer" : "grab";
-    canvas.releasePointerCapture(event.pointerId);
+    if (canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
   });
 
   canvas.addEventListener("pointerleave", () => {
@@ -419,11 +532,58 @@ export function createPostsGraph(canvas: HTMLCanvasElement, posts: Post[]): Post
     }
   });
 
-  canvas.addEventListener("pointercancel", () => {
+  canvas.addEventListener("pointercancel", (event) => {
+    touches.delete(event.pointerId);
+    if (touches.size < 2) {
+      pinch = null;
+    }
     pointer = null;
     hovered = null;
     tooltip.hidden = true;
     canvas.style.cursor = "grab";
+    if (!running) {
+      draw();
+    }
+  });
+
+  canvas.addEventListener("keydown", (event) => {
+    const pan = 30;
+    let handled = true;
+    switch (event.key) {
+      case "ArrowLeft":
+        view.x -= pan;
+        break;
+      case "ArrowRight":
+        view.x += pan;
+        break;
+      case "ArrowUp":
+        view.y -= pan;
+        break;
+      case "ArrowDown":
+        view.y += pan;
+        break;
+      case "+":
+      case "=":
+        event.preventDefault();
+        zoomAtCenter(1.15);
+        return;
+      case "-":
+      case "_":
+        event.preventDefault();
+        zoomAtCenter(1 / 1.15);
+        return;
+      case "0":
+        view.x = 0;
+        view.y = 0;
+        view.scale = 1;
+        break;
+      default:
+        handled = false;
+    }
+    if (!handled) {
+      return;
+    }
+    event.preventDefault();
     if (!running) {
       draw();
     }

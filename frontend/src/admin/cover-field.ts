@@ -11,10 +11,13 @@ interface CoverFieldElements {
 interface CoverFieldCallbacks {
   onChange(): void;
   onError(message: string): void;
+  onUploadStart?(): void;
+  onUploadEnd?(): void;
 }
 
 export class CoverField {
   private value = "";
+  private uploading = false;
 
   constructor(
     private readonly elements: CoverFieldElements,
@@ -31,6 +34,8 @@ export class CoverField {
         return;
       }
       this.setValue("");
+      this.callbacks.onChange();
+      this.callbacks.onError("Não foi possível carregar a thumbnail.");
     });
   }
 
@@ -44,6 +49,10 @@ export class CoverField {
     return this.value;
   }
 
+  isUploading(): boolean {
+    return this.uploading;
+  }
+
   private async upload(): Promise<void> {
     const file = this.elements.input.files?.[0];
     this.elements.input.value = "";
@@ -51,12 +60,17 @@ export class CoverField {
       return;
     }
 
+    this.uploading = true;
+    this.callbacks.onUploadStart?.();
     try {
       const url = await api.uploadImage(file);
       this.setValue(url);
       this.callbacks.onChange();
     } catch {
       this.callbacks.onError("Não foi possível carregar a imagem.");
+    } finally {
+      this.uploading = false;
+      this.callbacks.onUploadEnd?.();
     }
   }
 }

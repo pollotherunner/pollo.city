@@ -13,6 +13,8 @@ interface AudioFieldElements {
 interface AudioFieldCallbacks {
   onChange(): void;
   onError(message: string): void;
+  onUploadStart?(): void;
+  onUploadEnd?(): void;
 }
 
 export class AudioField {
@@ -80,6 +82,7 @@ export class AudioField {
     }
 
     this.uploading = true;
+    this.callbacks.onUploadStart?.();
     this.elements.button.disabled = true;
     this.elements.removeButton.disabled = true;
     this.setStatus("Analisando áudio…");
@@ -95,6 +98,7 @@ export class AudioField {
       this.callbacks.onError("Não foi possível enviar o áudio.");
     } finally {
       this.uploading = false;
+      this.callbacks.onUploadEnd?.();
       this.elements.button.disabled = false;
       this.elements.removeButton.disabled = false;
     }

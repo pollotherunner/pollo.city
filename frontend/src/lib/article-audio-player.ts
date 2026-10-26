@@ -153,7 +153,7 @@ export function mountArticleAudio(source: string): void {
   playButton.addEventListener("click", () => {
     if (audio.paused) {
       void audio.play().catch(() => {
-        host.hidden = true;
+        setPlaying(false);
       });
       return;
     }

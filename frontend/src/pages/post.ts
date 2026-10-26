@@ -16,6 +16,7 @@ const article = query<HTMLElement>("#article");
 const commentsSection = query<HTMLElement>("#comentarios");
 const progress = query<HTMLElement>(".reading-progress");
 const progressBar = query<HTMLElement>("[data-progress-bar]");
+let currentComments: Comment[] = [];
 
 function requestedSlug(): string | null {
   const pathMatch = window.location.pathname.match(/^\/post\/([^/]+)\/?$/);
@@ -29,18 +30,31 @@ function requestedSlug(): string | null {
   return new URLSearchParams(window.location.search).get("slug");
 }
 
-function renderNotFound(message: string): void {
+function renderPostError(eyebrow: string, heading: string, message: string, title: string): void {
   commentsSection.remove();
   progress.remove();
-  document.title = "Artigo não encontrado — pollo.city";
+  document.title = title;
   article.innerHTML = `<div class="not-found">
-    <p class="eyebrow">Erro 404</p>
-    <h1 class="not-found-title">Esse artigo não existe.</h1>
+    <p class="eyebrow">${escapeHtml(eyebrow)}</p>
+    <h1 class="not-found-title">${escapeHtml(heading)}</h1>
     <p>${escapeHtml(message)}</p>
     <a class="button" href="/#artigos">Voltar aos artigos <i data-lucide="arrow-left"></i></a>
   </div>`;
   refreshIcons(article);
   article.hidden = false;
+}
+
+function renderNotFound(message: string): void {
+  renderPostError("Erro 404", "Esse artigo não existe.", message, "Artigo não encontrado — pollo.city");
+}
+
+function renderLoadError(): void {
+  renderPostError(
+    "Erro de conexão",
+    "Não foi possível carregar o artigo.",
+    "Tente novamente em instantes.",
+    "Erro ao carregar — pollo.city",
+  );
 }
 
 function renderArticle(post: Post): void {
@@ -93,6 +107,7 @@ function renderArticle(post: Post): void {
 }
 
 function renderComments(comments: Comment[], highlightId?: number): void {
+  currentComments = comments;
   const count = query<HTMLElement>("[data-comment-count]");
   const list = query<HTMLElement>("#comments-list");
   count.textContent = String(comments.length);
@@ -192,10 +207,15 @@ function mountComments(post: Post): void {
     submitButton.disabled = true;
     try {
       const comment = await api.addComment(post.slug, { name, body: message });
-      const comments = await api.getComments(post.slug);
       form.reset();
-      renderComments(comments, comment.id);
       setStatus("Comentário publicado.", false);
+      renderComments([...currentComments, comment], comment.id);
+      try {
+        const comments = await api.getComments(post.slug);
+        renderComments(comments, comment.id);
+      } catch {
+        // The comment was published; a refresh failure must not invite a retry.
+      }
       window.setTimeout(() => {
         if (!status.classList.contains("is-error")) {
           status.hidden = true;
@@ -239,15 +259,14 @@ function mountReadingProgress(): void {
 
 async function bootstrap(): Promise<void> {
   const slug = requestedSlug();
-  let posts: Post[];
+  let post: Post | null;
   try {
-    posts = await api.getPosts();
+    post = slug ? await api.getPost(slug) : ((await api.getPosts())[0] ?? null);
   } catch {
-    renderNotFound("Não foi possível carregar o artigo agora.");
+    renderLoadError();
     return;
   }
 
-  const post = slug ? posts.find((item) => item.slug === slug) : posts[0];
   if (!post) {
     renderNotFound("O endereço pode ter mudado, ou o artigo nunca esteve aqui.");
     return;

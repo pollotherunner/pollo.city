@@ -5,6 +5,7 @@ import { refreshIcons } from "@/lib/icons";
 interface AuthCallbacks {
   onAuthenticated(): Promise<void> | void;
   onLogout(): void;
+  onLogoutError(message: string): void;
 }
 
 export class AuthView {
@@ -56,6 +57,11 @@ export class AuthView {
     this.password.removeAttribute("aria-invalid");
   }
 
+  showSessionExpired(): void {
+    this.error.textContent = "Sua sessão expirou. Entre novamente.";
+    this.error.hidden = false;
+  }
+
   private async login(): Promise<void> {
     this.error.hidden = true;
     this.password.removeAttribute("aria-invalid");
@@ -65,10 +71,13 @@ export class AuthView {
       this.password.value = "";
       await this.callbacks.onAuthenticated();
     } catch (error) {
-      this.error.textContent =
-        error instanceof ApiError && error.status === 401
-          ? "Senha incorreta. Tente de novo."
-          : "Não foi possível entrar agora.";
+      if (error instanceof ApiError && error.status === 429) {
+        this.error.textContent = "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
+      } else if (error instanceof ApiError && error.status === 401) {
+        this.error.textContent = "Senha incorreta. Tente de novo.";
+      } else {
+        this.error.textContent = "Não foi possível entrar agora.";
+      }
       this.error.hidden = false;
       this.password.setAttribute("aria-invalid", "true");
       this.password.focus();
@@ -79,9 +88,9 @@ export class AuthView {
   private async logout(): Promise<void> {
     try {
       await api.logout();
+      this.callbacks.onLogout();
     } catch {
-      // The local session is cleared even if the request fails.
+      this.callbacks.onLogoutError("Não foi possível sair. Tente novamente.");
     }
-    this.callbacks.onLogout();
   }
 }

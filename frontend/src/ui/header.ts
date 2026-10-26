@@ -27,7 +27,7 @@ function mountMobileNav(host: HTMLElement): void {
   });
 
   nav.addEventListener("click", (event) => {
-    if (event.target instanceof Element && event.target.closest("a")) {
+    if (event.target instanceof Element && (event.target.closest("a") || event.target.closest(".search-toggle"))) {
       setOpen(false);
     }
   });
@@ -89,7 +89,7 @@ export function mountHeader(host: HTMLElement, page: PageKind): void {
         <input class="search-input" id="site-search-input" type="search" placeholder="Buscar artigos" aria-label="Buscar artigos" autocomplete="off" spellcheck="false">
         <button class="search-close" type="button" data-close-search aria-label="Fechar busca"><i data-lucide="x"></i></button>
       </div>
-      <div class="search-results" id="site-search-results"></div>
+      <div class="search-results" id="site-search-results" role="status" aria-live="polite"></div>
     </div>
   </dialog>`;
 

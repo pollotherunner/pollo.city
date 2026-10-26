@@ -22,6 +22,8 @@ export class AboutEditor {
   private editor: MarkdownEditor | null = null;
   private dirty = false;
   private syncing = false;
+  private saving = false;
+  private revision = 0;
 
   constructor(private readonly callbacks: AboutEditorCallbacks) {}
 
@@ -65,6 +67,8 @@ export class AboutEditor {
     }
 
     this.dirty = false;
+    this.saving = false;
+    this.revision = 0;
     if (this.editor) {
       this.setSaveState(about.updatedAt ? `Atualizado em ${formatDateTime(about.updatedAt)}` : "");
     }
@@ -102,6 +106,7 @@ export class AboutEditor {
 
   private markDirty(): void {
     this.dirty = true;
+    this.revision += 1;
     this.updateStats();
     this.setSaveState("Alterações não salvas");
   }
@@ -112,6 +117,9 @@ export class AboutEditor {
   }
 
   private async save(): Promise<void> {
+    if (this.saving) {
+      return;
+    }
     const title = this.titleField.value.trim();
     if (!title) {
       this.setSaveState("Escreva um título.", true);
@@ -119,6 +127,8 @@ export class AboutEditor {
       return;
     }
 
+    const revision = this.revision;
+    this.saving = true;
     this.saveButton.disabled = true;
     this.setSaveState("Salvando…");
     try {
@@ -127,18 +137,28 @@ export class AboutEditor {
         lede: this.ledeField.value.trim(),
         body: this.markdown(),
       });
-      this.titleField.value = about.title;
-      this.ledeField.value = about.lede;
-      this.dirty = false;
-      this.setSaveState("Sobre salvo");
+      if (this.revision === revision) {
+        this.titleField.value = about.title;
+        this.ledeField.value = about.lede;
+        this.dirty = false;
+        this.setSaveState("Sobre salvo");
+      } else {
+        this.dirty = true;
+        this.setSaveState("Sobre salvo, mas há alterações não salvas.");
+      }
     } catch {
       this.setSaveState("Não foi possível salvar a página Sobre.", true);
     } finally {
+      this.saving = false;
       this.saveButton.disabled = false;
     }
   }
 
   private async close(): Promise<void> {
+    if (this.saving) {
+      this.setSaveState("Aguarde o salvamento terminar.", true);
+      return;
+    }
     if (this.dirty && !window.confirm("Descartar as alterações da página Sobre?")) {
       return;
     }
@@ -149,7 +169,7 @@ export class AboutEditor {
     document.addEventListener(
       "keydown",
       (event) => {
-        if (!this.isOpen() || !(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") {
+        if (!this.isOpen() || this.saving || !(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") {
           return;
         }
         event.preventDefault();

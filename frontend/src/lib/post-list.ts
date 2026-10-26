@@ -65,7 +65,7 @@ export function renderPostRow(post: Post, tagBase: string): string {
         ${section}
         ${tagLinks}
       </div>
-      <h3 class="post-title"><a class="post-title-link" href="/post/${encodeURIComponent(post.slug)}">${escapeHtml(post.title)}</a></h3>
+      <h2 class="post-title"><a class="post-title-link" href="/post/${encodeURIComponent(post.slug)}">${escapeHtml(post.title)}</a></h2>
       ${excerpt}
     </div>
     <div class="post-aside">

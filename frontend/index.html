@@ -43,13 +43,15 @@
 
         <div class="graph-view" id="graph-view" hidden>
           <div class="graph-frame">
-            <canvas id="posts-graph" role="img" aria-label="Grafo de artigos e tags"></canvas>
+            <canvas id="posts-graph" role="img" aria-label="Grafo de artigos e tags" tabindex="0" aria-describedby="graph-help"></canvas>
             <div class="graph-tooltip" id="graph-tooltip" hidden></div>
             <div class="graph-legend" aria-hidden="true">
               <span><i class="legend-dot legend-dot--post"></i>Artigos</span>
               <span><i class="legend-dot legend-dot--offtopic"></i>Off-Topic</span>
               <span><i class="legend-dot legend-dot--tag"></i>Tags</span>
             </div>
+            <p class="sr-only" id="graph-help">Use as setas para mover o grafo, mais e menos para ampliar e a lista abaixo para abrir artigos e tags.</p>
+            <ul class="sr-only" id="graph-links" aria-label="Artigos e tags do grafo"></ul>
           </div>
         </div>
       </div>
