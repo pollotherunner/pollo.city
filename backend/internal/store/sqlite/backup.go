@@ -62,6 +62,9 @@ func (s *Store) Export(ctx context.Context) (*domain.Backup, error) {
 }
 
 func (s *Store) Import(ctx context.Context, backup *domain.Backup) error {
+	s.contentMu.Lock()
+	defer s.contentMu.Unlock()
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin import: %w", err)

@@ -20,6 +20,7 @@ type Config struct {
 	CookieSecure        bool
 	MaxUploadBytes      int64
 	MaxAudioUploadBytes int64
+	OrphanUploadAge     time.Duration
 	CommentRateLimit    int
 	CommentRateWindow   time.Duration
 }
@@ -63,6 +64,15 @@ func Load() (Config, error) {
 		maxAudioUploadMB = parsed
 	}
 
+	orphanUploadAge := 24 * time.Hour
+	if value := strings.TrimSpace(os.Getenv("ORPHAN_UPLOAD_AGE")); value != "" {
+		parsed, err := time.ParseDuration(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("parse ORPHAN_UPLOAD_AGE: %w", err)
+		}
+		orphanUploadAge = parsed
+	}
+
 	commentRateLimit := 5
 	if value := strings.TrimSpace(os.Getenv("COMMENT_RATE_LIMIT")); value != "" {
 		parsed, err := strconv.Atoi(value)
@@ -91,6 +101,7 @@ func Load() (Config, error) {
 		CookieSecure:        cookieSecure,
 		MaxUploadBytes:      int64(maxUploadMB) * 1024 * 1024,
 		MaxAudioUploadBytes: int64(maxAudioUploadMB) * 1024 * 1024,
+		OrphanUploadAge:     orphanUploadAge,
 		CommentRateLimit:    commentRateLimit,
 		CommentRateWindow:   commentRateWindow,
 	}
@@ -109,6 +120,9 @@ func Load() (Config, error) {
 	}
 	if cfg.MaxAudioUploadBytes <= 0 {
 		return Config{}, fmt.Errorf("MAX_AUDIO_UPLOAD_MB must be positive")
+	}
+	if cfg.OrphanUploadAge <= 0 {
+		return Config{}, fmt.Errorf("ORPHAN_UPLOAD_AGE must be positive")
 	}
 	if cfg.CommentRateLimit < 0 {
 		return Config{}, fmt.Errorf("COMMENT_RATE_LIMIT must be zero or positive")

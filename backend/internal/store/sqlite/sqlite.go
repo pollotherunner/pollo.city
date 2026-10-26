@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	_ "modernc.org/sqlite"
 )
@@ -18,7 +19,8 @@ import (
 var migrationsFS embed.FS
 
 type Store struct {
-	db *sql.DB
+	db        *sql.DB
+	contentMu sync.RWMutex
 }
 
 func New(path string) (*Store, error) {
@@ -56,6 +58,15 @@ func (s *Store) Ping(ctx context.Context) error {
 
 func (s *Store) Close() error {
 	return s.db.Close()
+}
+
+// WithContentReadLock runs fn while content writes and imports are blocked.
+// Upload cleanup uses it to keep its database snapshot and file removals
+// consistent with concurrent saves.
+func (s *Store) WithContentReadLock(fn func() error) error {
+	s.contentMu.RLock()
+	defer s.contentMu.RUnlock()
+	return fn()
 }
 
 func (s *Store) migrate(ctx context.Context) error {
