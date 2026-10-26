@@ -8,18 +8,18 @@ import (
 	"time"
 )
 
-func (s *Store) CreateSession(ctx context.Context, tokenHash string, expiresAt time.Time) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO sessions (token_hash, expires_at, created_at)
-		VALUES (?, ?, ?)`, tokenHash, timeString(expiresAt), nowString())
+func (s *Store) CreateSession(ctx context.Context, tokenHash string, passwordHash string, expiresAt time.Time) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO sessions (token_hash, password_hash, expires_at, created_at)
+		VALUES (?, ?, ?, ?)`, tokenHash, passwordHash, timeString(expiresAt), nowString())
 	if err != nil {
 		return fmt.Errorf("create session: %w", err)
 	}
 	return nil
 }
 
-func (s *Store) SessionExists(ctx context.Context, tokenHash string, now time.Time) (bool, error) {
+func (s *Store) SessionExists(ctx context.Context, tokenHash string, passwordHash string, now time.Time) (bool, error) {
 	var expiresAt string
-	err := s.db.QueryRowContext(ctx, "SELECT expires_at FROM sessions WHERE token_hash = ?", tokenHash).Scan(&expiresAt)
+	err := s.db.QueryRowContext(ctx, "SELECT expires_at FROM sessions WHERE token_hash = ? AND password_hash = ?", tokenHash, passwordHash).Scan(&expiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}

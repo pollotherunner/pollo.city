@@ -3,20 +3,23 @@ package httpapi
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"pollo.city/internal/domain"
 	"pollo.city/internal/store"
+	"pollo.city/internal/uploads"
 )
 
 type draftRequest struct {
-	PostSlug  string   `json:"postSlug"`
-	Title     string   `json:"title"`
-	Excerpt   string   `json:"excerpt"`
-	Tags      []string `json:"tags"`
-	Thumbnail string   `json:"thumbnail"`
-	Body      string   `json:"body"`
-	Section   string   `json:"section"`
-	Audio     string   `json:"audio"`
+	PostSlug          string    `json:"postSlug"`
+	Title             string    `json:"title"`
+	Excerpt           string    `json:"excerpt"`
+	Tags              []string  `json:"tags"`
+	Thumbnail         string    `json:"thumbnail"`
+	Body              string    `json:"body"`
+	Section           string    `json:"section"`
+	Audio             string    `json:"audio"`
+	ExpectedUpdatedAt time.Time `json:"expectedUpdatedAt"`
 }
 
 func (s *Server) listDrafts(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +40,11 @@ func (s *Server) createDraft(w http.ResponseWriter, r *http.Request) {
 	if !validateDraft(w, request) {
 		return
 	}
+	unlockFiles := uploads.LockFilesRead()
+	defer unlockFiles()
+	if !s.validateUploadReferences(w, request.Body, request.Thumbnail, request.Audio) {
+		return
+	}
 	draft, err := s.store.CreateDraft(r.Context(), store.DraftInput{
 		PostSlug:  strings.TrimSpace(request.PostSlug),
 		Title:     strings.TrimSpace(request.Title),
@@ -44,7 +52,7 @@ func (s *Server) createDraft(w http.ResponseWriter, r *http.Request) {
 		Tags:      request.Tags,
 		Thumbnail: strings.TrimSpace(request.Thumbnail),
 		Body:      request.Body,
-		Section:   request.Section,
+		Section:   strings.TrimSpace(request.Section),
 		Audio:     strings.TrimSpace(request.Audio),
 	})
 	if err != nil {
@@ -62,15 +70,21 @@ func (s *Server) updateDraft(w http.ResponseWriter, r *http.Request) {
 	if !validateDraft(w, request) {
 		return
 	}
+	unlockFiles := uploads.LockFilesRead()
+	defer unlockFiles()
+	if !s.validateUploadReferences(w, request.Body, request.Thumbnail, request.Audio) {
+		return
+	}
 	draft, err := s.store.UpdateDraft(r.Context(), r.PathValue("id"), store.DraftInput{
-		PostSlug:  strings.TrimSpace(request.PostSlug),
-		Title:     strings.TrimSpace(request.Title),
-		Excerpt:   strings.TrimSpace(request.Excerpt),
-		Tags:      request.Tags,
-		Thumbnail: strings.TrimSpace(request.Thumbnail),
-		Body:      request.Body,
-		Section:   request.Section,
-		Audio:     strings.TrimSpace(request.Audio),
+		PostSlug:          strings.TrimSpace(request.PostSlug),
+		Title:             strings.TrimSpace(request.Title),
+		Excerpt:           strings.TrimSpace(request.Excerpt),
+		Tags:              request.Tags,
+		Thumbnail:         strings.TrimSpace(request.Thumbnail),
+		Body:              request.Body,
+		Section:           strings.TrimSpace(request.Section),
+		Audio:             strings.TrimSpace(request.Audio),
+		ExpectedUpdatedAt: request.ExpectedUpdatedAt,
 	})
 	if err != nil {
 		s.writeStoreError(w, err)

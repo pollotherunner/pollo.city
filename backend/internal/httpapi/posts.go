@@ -6,6 +6,7 @@ import (
 
 	"pollo.city/internal/domain"
 	"pollo.city/internal/store"
+	"pollo.city/internal/uploads"
 )
 
 type postRequest struct {
@@ -72,13 +73,18 @@ func (s *Server) createPost(w http.ResponseWriter, r *http.Request) {
 	if !validatePost(w, request) {
 		return
 	}
+	unlockFiles := uploads.LockFilesRead()
+	defer unlockFiles()
+	if !s.validateUploadReferences(w, request.Body, request.Thumbnail, request.Audio) {
+		return
+	}
 	post, err := s.store.CreatePost(r.Context(), store.PostInput{
 		Title:     strings.TrimSpace(request.Title),
 		Excerpt:   strings.TrimSpace(request.Excerpt),
 		Tags:      request.Tags,
 		Thumbnail: strings.TrimSpace(request.Thumbnail),
 		Body:      request.Body,
-		Section:   request.Section,
+		Section:   strings.TrimSpace(request.Section),
 		Audio:     strings.TrimSpace(request.Audio),
 	})
 	if err != nil {
@@ -96,13 +102,18 @@ func (s *Server) updatePost(w http.ResponseWriter, r *http.Request) {
 	if !validatePost(w, request) {
 		return
 	}
+	unlockFiles := uploads.LockFilesRead()
+	defer unlockFiles()
+	if !s.validateUploadReferences(w, request.Body, request.Thumbnail, request.Audio) {
+		return
+	}
 	post, err := s.store.UpdatePost(r.Context(), r.PathValue("slug"), store.PostInput{
 		Title:     strings.TrimSpace(request.Title),
 		Excerpt:   strings.TrimSpace(request.Excerpt),
 		Tags:      request.Tags,
 		Thumbnail: strings.TrimSpace(request.Thumbnail),
 		Body:      request.Body,
-		Section:   request.Section,
+		Section:   strings.TrimSpace(request.Section),
 		Audio:     strings.TrimSpace(request.Audio),
 	})
 	if err != nil {

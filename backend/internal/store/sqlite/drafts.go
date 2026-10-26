@@ -16,7 +16,7 @@ func (s *Store) ListDrafts(ctx context.Context) ([]domain.Draft, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT d.id, COALESCE(p.slug, ''), d.title, d.excerpt, d.body_markdown, d.thumbnail_url, d.section, d.audio_url, d.updated_at
 		FROM drafts d
 		LEFT JOIN posts p ON p.id = d.post_id
-		ORDER BY julianday(d.updated_at) DESC`)
+		ORDER BY julianday(d.updated_at) DESC, d.rowid DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list drafts: %w", err)
 	}
@@ -99,6 +99,17 @@ func (s *Store) CreateDraft(ctx context.Context, input store.DraftInput) (*domai
 	if err != nil {
 		return nil, err
 	}
+	postSlug := strings.TrimSpace(input.PostSlug)
+	if postSlug != "" {
+		var existing int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(1) FROM drafts d
+			JOIN posts p ON p.id = d.post_id WHERE p.slug = ?`, postSlug).Scan(&existing); err != nil {
+			return nil, fmt.Errorf("check existing draft: %w", err)
+		}
+		if existing > 0 {
+			return nil, store.ErrConflict
+		}
+	}
 	postID, err := resolvePostID(ctx, tx, input.PostSlug)
 	if err != nil {
 		return nil, err
@@ -130,12 +141,20 @@ func (s *Store) UpdateDraft(ctx context.Context, id string, input store.DraftInp
 	}
 	defer tx.Rollback()
 
-	var exists int
-	if err := tx.QueryRowContext(ctx, "SELECT COUNT(1) FROM drafts WHERE id = ?", id).Scan(&exists); err != nil {
+	var currentUpdatedAt string
+	if err := tx.QueryRowContext(ctx, "SELECT updated_at FROM drafts WHERE id = ?", id).Scan(&currentUpdatedAt); errors.Is(err, sql.ErrNoRows) {
+		return nil, store.ErrNotFound
+	} else if err != nil {
 		return nil, fmt.Errorf("find draft: %w", err)
 	}
-	if exists == 0 {
-		return nil, store.ErrNotFound
+	if !input.ExpectedUpdatedAt.IsZero() {
+		current, err := parseStoredTime(currentUpdatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("parse draft updated_at: %w", err)
+		}
+		if !current.Equal(input.ExpectedUpdatedAt) {
+			return nil, store.ErrConflict
+		}
 	}
 	postID, err := resolvePostID(ctx, tx, input.PostSlug)
 	if err != nil {
@@ -161,7 +180,13 @@ func (s *Store) DeleteDraft(ctx context.Context, id string) error {
 	s.contentMu.Lock()
 	defer s.contentMu.Unlock()
 
-	result, err := s.db.ExecContext(ctx, "DELETE FROM drafts WHERE id = ?", id)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin delete draft: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx, "DELETE FROM drafts WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("delete draft: %w", err)
 	}
@@ -171,6 +196,12 @@ func (s *Store) DeleteDraft(ctx context.Context, id string) error {
 	}
 	if affected == 0 {
 		return store.ErrNotFound
+	}
+	if err := cleanupOrphanTags(ctx, tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete draft: %w", err)
 	}
 	return nil
 }
@@ -193,7 +224,8 @@ func setDraftTags(ctx context.Context, tx *sql.Tx, draftID string, values []stri
 		return fmt.Errorf("clear draft tags: %w", err)
 	}
 	for _, tag := range normalizeTags(values) {
-		if _, err := tx.ExecContext(ctx, "INSERT INTO tags (name, slug) VALUES (?, ?) ON CONFLICT(slug) DO NOTHING", tag.Name, tag.Slug); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO tags (name, slug) VALUES (?, ?)
+			ON CONFLICT(slug) DO UPDATE SET name = excluded.name`, tag.Name, tag.Slug); err != nil {
 			return fmt.Errorf("insert draft tag: %w", err)
 		}
 		var tagID int64
@@ -204,7 +236,7 @@ func setDraftTags(ctx context.Context, tx *sql.Tx, draftID string, values []stri
 			return fmt.Errorf("link draft tag: %w", err)
 		}
 	}
-	return nil
+	return cleanupOrphanTags(ctx, tx)
 }
 
 func (s *Store) tagsForDrafts(ctx context.Context, ids []string) (map[string][]string, error) {

@@ -18,7 +18,7 @@ func (s *Server) exportBackup(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) importBackup(w http.ResponseWriter, r *http.Request) {
 	var backup domain.Backup
-	if !decodeJSON(w, r, &backup, 32<<20) {
+	if !decodeJSON(w, r, &backup, 256<<20) {
 		return
 	}
 	if backup.Version != 1 {

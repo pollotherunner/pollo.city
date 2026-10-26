@@ -172,11 +172,11 @@ func (s *Store) DeletePost(ctx context.Context, slug string) error {
 		return fmt.Errorf("find post for delete: %w", err)
 	}
 
-	if _, err := tx.ExecContext(ctx, "DELETE FROM drafts WHERE post_id = ?", postID); err != nil {
-		return fmt.Errorf("delete post drafts: %w", err)
-	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM posts WHERE id = ?", postID); err != nil {
 		return fmt.Errorf("delete post: %w", err)
+	}
+	if err := cleanupOrphanTags(ctx, tx); err != nil {
+		return err
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit delete post: %w", err)
@@ -232,7 +232,8 @@ func setPostTags(ctx context.Context, tx *sql.Tx, postID int64, values []string)
 	}
 
 	for _, tag := range normalizeTags(values) {
-		if _, err := tx.ExecContext(ctx, "INSERT INTO tags (name, slug) VALUES (?, ?) ON CONFLICT(slug) DO NOTHING", tag.Name, tag.Slug); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO tags (name, slug) VALUES (?, ?)
+			ON CONFLICT(slug) DO UPDATE SET name = excluded.name`, tag.Name, tag.Slug); err != nil {
 			return fmt.Errorf("insert tag: %w", err)
 		}
 		var tagID int64
@@ -242,6 +243,15 @@ func setPostTags(ctx context.Context, tx *sql.Tx, postID int64, values []string)
 		if _, err := tx.ExecContext(ctx, "INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)", postID, tagID); err != nil {
 			return fmt.Errorf("link post tag: %w", err)
 		}
+	}
+	return cleanupOrphanTags(ctx, tx)
+}
+
+func cleanupOrphanTags(ctx context.Context, tx *sql.Tx) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM tags
+		WHERE NOT EXISTS (SELECT 1 FROM post_tags WHERE tag_id = tags.id)
+		AND NOT EXISTS (SELECT 1 FROM draft_tags WHERE tag_id = tags.id)`); err != nil {
+		return fmt.Errorf("clean up orphan tags: %w", err)
 	}
 	return nil
 }

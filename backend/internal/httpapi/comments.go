@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -43,15 +42,7 @@ func (s *Server) addComment(w http.ResponseWriter, r *http.Request) {
 
 	allowed, retryAfter := s.commentLimiter.allow(clientRateLimitKey(r), time.Now())
 	if !allowed {
-		seconds := int(retryAfter / time.Second)
-		if retryAfter%time.Second != 0 {
-			seconds += 1
-		}
-		if seconds < 1 {
-			seconds = 1
-		}
-		w.Header().Set("Retry-After", strconv.Itoa(seconds))
-		writeError(w, http.StatusTooManyRequests, "too many comments, try again later")
+		writeRateLimitError(w, retryAfter, "too many comments, try again later")
 		return
 	}
 

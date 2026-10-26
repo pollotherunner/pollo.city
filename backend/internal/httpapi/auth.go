@@ -15,6 +15,13 @@ type loginRequest struct {
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
+	rateLimitKey := clientRateLimitKey(r)
+	allowed, retryAfter := s.loginLimiter.allow(rateLimitKey, time.Now())
+	if !allowed {
+		writeRateLimitError(w, retryAfter, "too many login attempts, try again later")
+		return
+	}
+
 	var request loginRequest
 	if !decodeJSON(w, r, &request, 1<<20) {
 		return
@@ -29,6 +36,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+	s.loginLimiter.reset(rateLimitKey)
 	s.setSessionCookie(w, token, expiresAt)
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
@@ -37,6 +45,8 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	if cookie, err := r.Cookie(sessionCookieName); err == nil {
 		if err := s.auth.Logout(r.Context(), cookie.Value); err != nil {
 			s.logError("logout failed", err)
+			writeError(w, http.StatusInternalServerError, "could not end session")
+			return
 		}
 	}
 	http.SetCookie(w, &http.Cookie{

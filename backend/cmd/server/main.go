@@ -44,8 +44,8 @@ func main() {
 		Addr:              cfg.HTTPAddr,
 		Handler:           handler.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       60 * time.Second,
-		WriteTimeout:      60 * time.Second,
+		ReadTimeout:       5 * time.Minute,
+		WriteTimeout:      5 * time.Minute,
 		IdleTimeout:       120 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 	}
@@ -54,14 +54,23 @@ func main() {
 	defer stop()
 
 	cleaner := uploads.NewCleaner(database, cfg.UploadsDir, cfg.OrphanUploadAge, logger)
-	go runUploadCleanup(stopContext, cleaner, logger)
+	cleanupDone := make(chan struct{})
+	go func() {
+		defer close(cleanupDone)
+		runUploadCleanup(stopContext, cleaner, logger)
+	}()
 
+	serverErr := make(chan error, 1)
 	go func() {
 		logger.Info("server listening", "addr", cfg.HTTPAddr)
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		err := server.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("server stopped unexpectedly", "error", err)
+			serverErr <- err
 			stop()
+			return
 		}
+		serverErr <- nil
 	}()
 
 	<-stopContext.Done()
@@ -69,6 +78,23 @@ func main() {
 	defer cancel()
 	if err := server.Shutdown(shutdownContext); err != nil {
 		logger.Error("graceful shutdown failed", "error", err)
+	}
+
+	select {
+	case <-cleanupDone:
+	case <-time.After(10 * time.Second):
+		logger.Warn("upload cleanup did not finish before shutdown")
+	}
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			if closeErr := database.Close(); closeErr != nil {
+				logger.Error("database close failed", "error", closeErr)
+			}
+			os.Exit(1)
+		}
+	default:
 	}
 }
 
@@ -79,11 +105,14 @@ const (
 
 func runUploadCleanup(ctx context.Context, cleaner *uploads.Cleaner, logger *slog.Logger) {
 	run := func() {
-		cleanupContext, cancel := context.WithTimeout(context.Background(), uploadCleanupTimeout)
+		cleanupContext, cancel := context.WithTimeout(ctx, uploadCleanupTimeout)
 		defer cancel()
 
 		report, err := cleaner.Run(cleanupContext)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return
+			}
 			logger.Error("orphan upload cleanup failed",
 				"error", err,
 				"scanned", report.Scanned,
@@ -101,6 +130,7 @@ func runUploadCleanup(ctx context.Context, cleaner *uploads.Cleaner, logger *slo
 			"ignored", report.Ignored,
 			"failed", report.Failed,
 			"freed_bytes", report.FreedBytes,
+			"skipped_empty_database", report.SkippedEmptyDatabase,
 		)
 	}
 

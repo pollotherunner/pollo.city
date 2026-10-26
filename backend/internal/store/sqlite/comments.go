@@ -43,15 +43,24 @@ func (s *Store) ListComments(ctx context.Context, postSlug string) ([]domain.Com
 }
 
 func (s *Store) AddComment(ctx context.Context, postSlug string, input store.CommentInput) (*domain.Comment, error) {
+	s.contentMu.Lock()
+	defer s.contentMu.Unlock()
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin add comment: %w", err)
+	}
+	defer tx.Rollback()
+
 	var postID int64
-	if err := s.db.QueryRowContext(ctx, "SELECT id FROM posts WHERE slug = ?", postSlug).Scan(&postID); errors.Is(err, sql.ErrNoRows) {
+	if err := tx.QueryRowContext(ctx, "SELECT id FROM posts WHERE slug = ?", postSlug).Scan(&postID); errors.Is(err, sql.ErrNoRows) {
 		return nil, store.ErrNotFound
 	} else if err != nil {
 		return nil, fmt.Errorf("find post for comment: %w", err)
 	}
 
 	now := time.Now().UTC()
-	result, err := s.db.ExecContext(ctx, "INSERT INTO comments (post_id, name, body, created_at) VALUES (?, ?, ?, ?)",
+	result, err := tx.ExecContext(ctx, "INSERT INTO comments (post_id, name, body, created_at) VALUES (?, ?, ?, ?)",
 		postID, input.Name, input.Body, timeString(now))
 	if err != nil {
 		return nil, fmt.Errorf("insert comment: %w", err)
@@ -59,6 +68,9 @@ func (s *Store) AddComment(ctx context.Context, postSlug string, input store.Com
 	id, err := result.LastInsertId()
 	if err != nil {
 		return nil, fmt.Errorf("comment id: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit add comment: %w", err)
 	}
 	return &domain.Comment{ID: id, Name: input.Name, Body: input.Body, Date: now}, nil
 }

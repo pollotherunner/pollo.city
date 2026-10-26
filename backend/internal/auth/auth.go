@@ -19,13 +19,16 @@ var ErrInvalidCredentials = errors.New("invalid credentials")
 type Service struct {
 	store        store.Store
 	passwordHash [32]byte
+	sessionKey   string
 	sessionTTL   time.Duration
 }
 
 func New(st store.Store, password string, sessionTTL time.Duration) *Service {
+	passwordHash := sha256.Sum256([]byte(password))
 	return &Service{
 		store:        st,
-		passwordHash: sha256.Sum256([]byte(password)),
+		passwordHash: passwordHash,
+		sessionKey:   hex.EncodeToString(passwordHash[:]),
 		sessionTTL:   sessionTTL,
 	}
 }
@@ -47,7 +50,7 @@ func (s *Service) Login(ctx context.Context, password string) (string, time.Time
 	if err := s.store.DeleteExpiredSessions(ctx, now); err != nil {
 		return "", time.Time{}, err
 	}
-	if err := s.store.CreateSession(ctx, hashToken(token), expiresAt); err != nil {
+	if err := s.store.CreateSession(ctx, hashToken(token), s.sessionKey, expiresAt); err != nil {
 		return "", time.Time{}, err
 	}
 	return token, expiresAt, nil
@@ -57,7 +60,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (bool, error) 
 	if token == "" {
 		return false, nil
 	}
-	return s.store.SessionExists(ctx, hashToken(token), time.Now().UTC())
+	return s.store.SessionExists(ctx, hashToken(token), s.sessionKey, time.Now().UTC())
 }
 
 func (s *Service) Logout(ctx context.Context, token string) error {

@@ -11,6 +11,16 @@ import (
 )
 
 func (s *Store) Export(ctx context.Context) (*domain.Backup, error) {
+	var backup *domain.Backup
+	err := s.WithContentReadLock(func() error {
+		var exportErr error
+		backup, exportErr = s.export(ctx)
+		return exportErr
+	})
+	return backup, err
+}
+
+func (s *Store) export(ctx context.Context) (*domain.Backup, error) {
 	posts, err := s.ListPosts(ctx)
 	if err != nil {
 		return nil, err
@@ -85,7 +95,7 @@ func (s *Store) Import(ctx context.Context, backup *domain.Backup) error {
 	}
 
 	postIDs := make(map[string]int64, len(backup.Posts))
-	for _, post := range backup.Posts {
+	for index, post := range backup.Posts {
 		slug := strings.TrimSpace(post.Slug)
 		if slug == "" {
 			slug = slugify(post.Title, "artigo", 72)
@@ -94,6 +104,9 @@ func (s *Store) Import(ctx context.Context, backup *domain.Backup) error {
 		if err != nil {
 			publishedAt = time.Now().UTC()
 		}
+		// The backup stores only YYYY-MM-DD. Add a stable offset so posts
+		// exported newest-first keep that order after the id tie-breaker.
+		publishedAt = publishedAt.Add(time.Duration(len(backup.Posts)-index) * time.Millisecond)
 		excerpt := strings.TrimSpace(post.Excerpt)
 		result, err := tx.ExecContext(ctx, `INSERT INTO posts
 			(slug, title, excerpt, body_markdown, thumbnail_url, section, audio_url, published_at, created_at, updated_at)
@@ -115,9 +128,10 @@ func (s *Store) Import(ctx context.Context, backup *domain.Backup) error {
 	}
 
 	for _, comment := range backup.Comments {
-		postID, ok := postIDs[comment.PostSlug]
+		postSlug := strings.TrimSpace(comment.PostSlug)
+		postID, ok := postIDs[postSlug]
 		if !ok {
-			continue
+			return fmt.Errorf("%w: comment references missing post %q", store.ErrInvalid, comment.PostSlug)
 		}
 		createdAt := comment.Date
 		if createdAt.IsZero() {
@@ -139,7 +153,12 @@ func (s *Store) Import(ctx context.Context, backup *domain.Backup) error {
 			id = generated
 		}
 		var postID any
-		if value, ok := postIDs[draft.PostSlug]; ok {
+		postSlug := strings.TrimSpace(draft.PostSlug)
+		if postSlug != "" {
+			value, ok := postIDs[postSlug]
+			if !ok {
+				return fmt.Errorf("%w: draft %q references missing post %q", store.ErrInvalid, id, draft.PostSlug)
+			}
 			postID = value
 		}
 		updatedAt := draft.UpdatedAt
@@ -160,12 +179,8 @@ func (s *Store) Import(ctx context.Context, backup *domain.Backup) error {
 	}
 
 	if backup.About != nil {
-		title := strings.TrimSpace(backup.About.Title)
-		if title == "" {
-			title = defaultAboutTitle
-		}
 		if err := upsertAbout(ctx, tx, store.AboutInput{
-			Title: title,
+			Title: strings.TrimSpace(backup.About.Title),
 			Lede:  strings.TrimSpace(backup.About.Lede),
 			Body:  backup.About.Body,
 		}); err != nil {

@@ -26,7 +26,7 @@ func TestPageRoutes(t *testing.T) {
 	writePage(t, pagesDir, "off-topic.html", "off-topic page")
 	writePage(t, pagesDir, "arquivo.html", "archive page")
 	writePage(t, pagesDir, "sobre.html", "about page")
-	writePage(t, pagesDir, "post.html", "post page")
+	writePage(t, pagesDir, "post.html", `<html><head><title>pollo.city</title><meta name="description" content=""></head><body>post page</body></html>`)
 	writePage(t, pagesDir, "admin.html", "admin page")
 
 	database, err := sqlite.New(filepath.Join(t.TempDir(), "pollo.db"))
@@ -45,6 +45,9 @@ func TestPageRoutes(t *testing.T) {
 		t.Fatalf("create server: %v", err)
 	}
 	handler := server.Handler()
+	if _, err := database.CreatePost(context.Background(), store.PostInput{Title: "Meu artigo", Body: "Conteúdo"}); err != nil {
+		t.Fatalf("create post for page test: %v", err)
+	}
 
 	tests := []struct {
 		name         string
@@ -61,10 +64,14 @@ func TestPageRoutes(t *testing.T) {
 		{name: "off-topic trailing slash", method: http.MethodGet, target: "/off-topic/", status: http.StatusMovedPermanently, location: "/off-topic"},
 		{name: "off-topic legacy html", method: http.MethodGet, target: "/off-topic.html", status: http.StatusMovedPermanently, location: "/off-topic"},
 		{name: "archive clean route", method: http.MethodGet, target: "/arquivo", status: http.StatusOK, bodyContains: "archive page"},
+		{name: "archive trailing slash", method: http.MethodGet, target: "/arquivo/", status: http.StatusMovedPermanently, location: "/arquivo"},
 		{name: "archive legacy html", method: http.MethodGet, target: "/arquivo.html", status: http.StatusMovedPermanently, location: "/arquivo"},
 		{name: "about clean route", method: http.MethodGet, target: "/sobre", status: http.StatusOK, bodyContains: "about page"},
+		{name: "about trailing slash", method: http.MethodGet, target: "/sobre/", status: http.StatusMovedPermanently, location: "/sobre"},
 		{name: "about legacy html", method: http.MethodGet, target: "/sobre.html", status: http.StatusMovedPermanently, location: "/sobre"},
 		{name: "post clean route", method: http.MethodGet, target: "/post/meu-artigo", status: http.StatusOK, bodyContains: "post page"},
+		{name: "post trailing slash", method: http.MethodGet, target: "/post/meu-artigo/", status: http.StatusMovedPermanently, location: "/post/meu-artigo"},
+		{name: "post missing", method: http.MethodGet, target: "/post/nao-existe", status: http.StatusNotFound, bodyContains: "post page"},
 		{name: "post legacy html", method: http.MethodGet, target: "/post.html?slug=meu-artigo", status: http.StatusMovedPermanently, location: "/post/meu-artigo"},
 		{name: "post legacy html without slug", method: http.MethodGet, target: "/post.html", status: http.StatusMovedPermanently, location: "/"},
 		{name: "post route without slug", method: http.MethodGet, target: "/post", status: http.StatusMovedPermanently, location: "/"},
@@ -94,6 +101,22 @@ func TestPageRoutes(t *testing.T) {
 				t.Fatalf("expected body to contain %q, got %q", test.bodyContains, recorder.Body.String())
 			}
 		})
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/post/meu-artigo", nil)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	body := recorder.Body.String()
+	if !strings.Contains(body, "<title>Meu artigo — pollo.city</title>") || !strings.Contains(body, `property="og:type" content="article"`) {
+		t.Fatalf("post page metadata was not injected: %s", body)
+	}
+
+	request = httptest.NewRequest(http.MethodGet, "/post/nao-existe", nil)
+	recorder = httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	body = recorder.Body.String()
+	if !strings.Contains(body, `name="robots" content="noindex"`) || !strings.Contains(body, "<title>Artigo não encontrado — pollo.city</title>") {
+		t.Fatalf("missing post page should be noindex: %s", body)
 	}
 }
 
