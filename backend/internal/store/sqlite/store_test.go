@@ -328,6 +328,49 @@ func TestPostDeletionKeepsLinkedDraftAndCleansOrphanTags(t *testing.T) {
 	}
 }
 
+func TestImportDetachesDuplicateDrafts(t *testing.T) {
+	ctx := context.Background()
+	instance, err := New(filepath.Join(t.TempDir(), "pollo.db"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer instance.Close()
+
+	backup := &domain.Backup{
+		Version: 1,
+		Posts: []domain.Post{{
+			Slug:    "post",
+			Title:   "Post",
+			Body:    "Conteúdo",
+			Date:    "2026-10-26",
+			Section: "article",
+		}},
+		Drafts: []domain.Draft{
+			{ID: "draft-a", PostSlug: "post", Title: "A", Body: "A", Section: "article"},
+			{ID: "draft-b", PostSlug: "post", Title: "B", Body: "B", Section: "article"},
+		},
+	}
+	if err := instance.Import(ctx, backup); err != nil {
+		t.Fatalf("import backup: %v", err)
+	}
+	drafts, err := instance.ListDrafts(ctx)
+	if err != nil {
+		t.Fatalf("list drafts: %v", err)
+	}
+	if len(drafts) != 2 {
+		t.Fatalf("expected both drafts to be preserved, got %+v", drafts)
+	}
+	linked := 0
+	for _, draft := range drafts {
+		if draft.PostSlug == "post" {
+			linked++
+		}
+	}
+	if linked != 1 {
+		t.Fatalf("expected exactly one linked draft, got %+v", drafts)
+	}
+}
+
 func TestBackupPreservesSections(t *testing.T) {
 	ctx := context.Background()
 	instance, err := New(filepath.Join(t.TempDir(), "pollo.db"))

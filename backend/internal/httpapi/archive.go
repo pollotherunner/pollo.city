@@ -304,38 +304,53 @@ func (s *Server) restoreBackupUploads(ctx context.Context, entries []*zip.File, 
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(backupDir)
+	removeBackupDir := true
+	defer func() {
+		if removeBackupDir {
+			os.RemoveAll(backupDir)
+		}
+	}()
 
 	movedAside := make([]string, 0)
 	installed := make([]string, 0)
-	rollback := func() {
+	rollback := func() error {
+		var failures []error
 		for _, name := range installed {
-			os.Remove(filepath.Join(s.cfg.UploadsDir, name))
+			if err := os.Remove(filepath.Join(s.cfg.UploadsDir, name)); err != nil && !errors.Is(err, os.ErrNotExist) {
+				failures = append(failures, fmt.Errorf("remove installed %s: %w", name, err))
+			}
 		}
 		for _, name := range movedAside {
-			os.Rename(filepath.Join(backupDir, name), filepath.Join(s.cfg.UploadsDir, name))
+			if err := os.Rename(filepath.Join(backupDir, name), filepath.Join(s.cfg.UploadsDir, name)); err != nil {
+				failures = append(failures, fmt.Errorf("restore %s: %w", name, err))
+			}
 		}
+		return errors.Join(failures...)
+	}
+	fail := func(cause error) error {
+		if rollbackErr := rollback(); rollbackErr != nil {
+			removeBackupDir = false
+			return fmt.Errorf("backup rollback incomplete; originals preserved at %s: %v", backupDir, errors.Join(cause, rollbackErr))
+		}
+		return cause
 	}
 
 	for _, name := range names {
 		target := filepath.Join(s.cfg.UploadsDir, name)
 		if _, err := os.Lstat(target); err == nil {
 			if err := os.Rename(target, filepath.Join(backupDir, name)); err != nil {
-				rollback()
-				return err
+				return fail(err)
 			}
 			movedAside = append(movedAside, name)
 		}
 		if err := os.Rename(filepath.Join(staging, name), target); err != nil {
-			rollback()
-			return err
+			return fail(err)
 		}
 		installed = append(installed, name)
 	}
 
 	if err := s.store.Import(ctx, backup); err != nil {
-		rollback()
-		return err
+		return fail(err)
 	}
 	return nil
 }

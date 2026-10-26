@@ -143,6 +143,7 @@ func (s *Store) Import(ctx context.Context, backup *domain.Backup) error {
 		}
 	}
 
+	linkedDrafts := make(map[string]struct{})
 	for _, draft := range backup.Drafts {
 		id := strings.TrimSpace(draft.ID)
 		if id == "" {
@@ -159,7 +160,12 @@ func (s *Store) Import(ctx context.Context, backup *domain.Backup) error {
 			if !ok {
 				return fmt.Errorf("%w: draft %q references missing post %q", store.ErrInvalid, id, draft.PostSlug)
 			}
-			postID = value
+			if _, duplicate := linkedDrafts[postSlug]; duplicate {
+				postID = nil
+			} else {
+				linkedDrafts[postSlug] = struct{}{}
+				postID = value
+			}
 		}
 		updatedAt := draft.UpdatedAt
 		if updatedAt.IsZero() {
