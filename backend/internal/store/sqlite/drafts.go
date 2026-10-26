@@ -86,6 +86,9 @@ func (s *Store) GetDraft(ctx context.Context, id string) (*domain.Draft, error) 
 }
 
 func (s *Store) CreateDraft(ctx context.Context, input store.DraftInput) (*domain.Draft, error) {
+	s.contentMu.Lock()
+	defer s.contentMu.Unlock()
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin create draft: %w", err)
@@ -118,6 +121,9 @@ func (s *Store) CreateDraft(ctx context.Context, input store.DraftInput) (*domai
 }
 
 func (s *Store) UpdateDraft(ctx context.Context, id string, input store.DraftInput) (*domain.Draft, error) {
+	s.contentMu.Lock()
+	defer s.contentMu.Unlock()
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin update draft: %w", err)
@@ -152,6 +158,9 @@ func (s *Store) UpdateDraft(ctx context.Context, id string, input store.DraftInp
 }
 
 func (s *Store) DeleteDraft(ctx context.Context, id string) error {
+	s.contentMu.Lock()
+	defer s.contentMu.Unlock()
+
 	result, err := s.db.ExecContext(ctx, "DELETE FROM drafts WHERE id = ?", id)
 	if err != nil {
 		return fmt.Errorf("delete draft: %w", err)

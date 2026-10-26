@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"pollo.city/internal/domain"
 	"pollo.city/internal/store"
 	"pollo.city/internal/store/sqlite"
 )
@@ -114,6 +115,30 @@ func TestCleanerRemovesOnlyOldUnreferencedUploads(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(uploadsDir, "notes.txt")); err != nil {
 		t.Fatalf("expected unmanaged file to be kept: %v", err)
+	}
+}
+
+func TestCollectReferencesMatchesExactUploadNames(t *testing.T) {
+	name := fmt.Sprintf("%032x.png", 42)
+	contexts := []string{
+		"Veja em https://pollo.city/uploads/" + name + ".",
+		"![Imagem](/uploads/" + name + ")",
+		"![Imagem](https://pollo.city/uploads/" + name + "?v=1)",
+		"Arquivo /uploads/" + name + ", pronto.",
+	}
+
+	for _, body := range contexts {
+		referenced := collectReferences([]domain.Post{{Body: body}}, nil, nil)
+		if _, ok := referenced[name]; !ok {
+			t.Fatalf("expected %s to be referenced in %q", name, body)
+		}
+		if len(referenced) != 1 {
+			t.Fatalf("unexpected references for %q: %v", body, referenced)
+		}
+	}
+
+	if references := collectReferences([]domain.Post{{Body: "/uploads/not-managed.png"}}, nil, nil); len(references) != 0 {
+		t.Fatalf("unexpected references for an unmanaged file: %v", references)
 	}
 }
 

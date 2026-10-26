@@ -84,6 +84,9 @@ func (s *Store) GetPost(ctx context.Context, slug string) (*domain.Post, error) 
 }
 
 func (s *Store) CreatePost(ctx context.Context, input store.PostInput) (*domain.Post, error) {
+	s.contentMu.Lock()
+	defer s.contentMu.Unlock()
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin create post: %w", err)
@@ -119,6 +122,9 @@ func (s *Store) CreatePost(ctx context.Context, input store.PostInput) (*domain.
 }
 
 func (s *Store) UpdatePost(ctx context.Context, slug string, input store.PostInput) (*domain.Post, error) {
+	s.contentMu.Lock()
+	defer s.contentMu.Unlock()
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin update post: %w", err)
@@ -150,6 +156,9 @@ func (s *Store) UpdatePost(ctx context.Context, slug string, input store.PostInp
 }
 
 func (s *Store) DeletePost(ctx context.Context, slug string) error {
+	s.contentMu.Lock()
+	defer s.contentMu.Unlock()
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin delete post: %w", err)

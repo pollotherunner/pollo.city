@@ -34,6 +34,9 @@ func (s *Store) GetAbout(ctx context.Context) (*domain.About, error) {
 }
 
 func (s *Store) UpdateAbout(ctx context.Context, input store.AboutInput) (*domain.About, error) {
+	s.contentMu.Lock()
+	defer s.contentMu.Unlock()
+
 	if err := upsertAbout(ctx, s.db, input); err != nil {
 		return nil, err
 	}

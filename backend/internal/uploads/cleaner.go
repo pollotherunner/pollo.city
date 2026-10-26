@@ -15,9 +15,11 @@ import (
 	"pollo.city/internal/domain"
 )
 
+const uploadExtensionsPattern = `(?:aac|gif|jpe?g|m4a|mp3|ogg|opus|png|wav|webm|webp|json)`
+
 var (
-	uploadReference = regexp.MustCompile(`/uploads/[A-Za-z0-9][A-Za-z0-9._-]*`)
-	managedUpload   = regexp.MustCompile(`^[0-9a-f]{32}\.(?:aac|gif|jpe?g|m4a|mp3|ogg|opus|png|wav|webm|webp|json)$`)
+	uploadReference = regexp.MustCompile(`/uploads/([0-9a-f]{32}\.` + uploadExtensionsPattern + `)`)
+	managedUpload   = regexp.MustCompile(`^[0-9a-f]{32}\.` + uploadExtensionsPattern + `$`)
 )
 
 var audioExtensions = []string{".aac", ".m4a", ".mp3", ".ogg", ".opus", ".wav", ".webm"}
@@ -27,6 +29,7 @@ type Store interface {
 	ListPosts(ctx context.Context) ([]domain.Post, error)
 	ListDrafts(ctx context.Context) ([]domain.Draft, error)
 	GetAbout(ctx context.Context) (*domain.About, error)
+	WithContentReadLock(fn func() error) error
 }
 
 type Report struct {
@@ -54,6 +57,16 @@ func NewCleaner(st Store, dir string, minAge time.Duration, logger *slog.Logger)
 }
 
 func (c *Cleaner) Run(ctx context.Context) (Report, error) {
+	var report Report
+	err := c.store.WithContentReadLock(func() error {
+		var runErr error
+		report, runErr = c.run(ctx)
+		return runErr
+	})
+	return report, err
+}
+
+func (c *Cleaner) run(ctx context.Context) (Report, error) {
 	var report Report
 
 	posts, err := c.store.ListPosts(ctx)
@@ -153,10 +166,9 @@ func addReference(referenced map[string]struct{}, value string) {
 }
 
 func addReferences(referenced map[string]struct{}, text string) {
-	for _, match := range uploadReference.FindAllString(text, -1) {
-		name := strings.TrimPrefix(match, "/uploads/")
-		if name != "" {
-			referenced[name] = struct{}{}
+	for _, match := range uploadReference.FindAllStringSubmatch(text, -1) {
+		if len(match) > 1 && match[1] != "" {
+			referenced[match[1]] = struct{}{}
 		}
 	}
 }
