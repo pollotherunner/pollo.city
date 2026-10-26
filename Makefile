@@ -31,3 +31,4 @@ docker-down:
 deploy:
 	docker compose pull
 	docker compose up -d --no-build
+	docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile

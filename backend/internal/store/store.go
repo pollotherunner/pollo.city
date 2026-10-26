@@ -11,6 +11,7 @@ import (
 var (
 	ErrNotFound = errors.New("not found")
 	ErrConflict = errors.New("conflict")
+	ErrInvalid  = errors.New("invalid data")
 )
 
 type PostInput struct {
@@ -24,14 +25,15 @@ type PostInput struct {
 }
 
 type DraftInput struct {
-	PostSlug  string
-	Title     string
-	Excerpt   string
-	Tags      []string
-	Thumbnail string
-	Body      string
-	Section   string
-	Audio     string
+	PostSlug          string
+	Title             string
+	Excerpt           string
+	Tags              []string
+	Thumbnail         string
+	Body              string
+	Section           string
+	Audio             string
+	ExpectedUpdatedAt time.Time
 }
 
 type CommentInput struct {
@@ -69,8 +71,8 @@ type Store interface {
 	UpdateDraft(ctx context.Context, id string, input DraftInput) (*domain.Draft, error)
 	DeleteDraft(ctx context.Context, id string) error
 
-	CreateSession(ctx context.Context, tokenHash string, expiresAt time.Time) error
-	SessionExists(ctx context.Context, tokenHash string, now time.Time) (bool, error)
+	CreateSession(ctx context.Context, tokenHash string, passwordHash string, expiresAt time.Time) error
+	SessionExists(ctx context.Context, tokenHash string, passwordHash string, now time.Time) (bool, error)
 	DeleteSession(ctx context.Context, tokenHash string) error
 	DeleteExpiredSessions(ctx context.Context, now time.Time) error
 

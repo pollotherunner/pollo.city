@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"pollo.city/internal/domain"
+	"pollo.city/internal/uploads"
 )
 
 func (s *Server) exportBackup(w http.ResponseWriter, r *http.Request) {
@@ -17,8 +18,11 @@ func (s *Server) exportBackup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) importBackup(w http.ResponseWriter, r *http.Request) {
+	unlockFiles := uploads.LockFilesRead()
+	defer unlockFiles()
+
 	var backup domain.Backup
-	if !decodeJSON(w, r, &backup, 32<<20) {
+	if !decodeJSON(w, r, &backup, 256<<20) {
 		return
 	}
 	if backup.Version != 1 {
@@ -26,8 +30,7 @@ func (s *Server) importBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.Import(r.Context(), &backup); err != nil {
-		s.logError("import backup failed", err)
-		writeError(w, http.StatusInternalServerError, "internal error")
+		s.writeStoreError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})

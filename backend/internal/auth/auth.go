@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -19,13 +20,24 @@ var ErrInvalidCredentials = errors.New("invalid credentials")
 type Service struct {
 	store        store.Store
 	passwordHash [32]byte
+	sessionKey   string
 	sessionTTL   time.Duration
 }
 
+const sessionKeySalt = "pollo.city/admin-session/v1"
+
 func New(st store.Store, password string, sessionTTL time.Duration) *Service {
+	passwordHash := sha256.Sum256([]byte(password))
+	sessionKey, err := pbkdf2.Key(sha256.New, password, []byte(sessionKeySalt), 120_000, 32)
+	if err != nil {
+		// Invalid output sizes are rejected by the constructor arguments, so
+		// this can only happen if the standard library contract changes.
+		panic(fmt.Sprintf("derive session key: %v", err))
+	}
 	return &Service{
 		store:        st,
-		passwordHash: sha256.Sum256([]byte(password)),
+		passwordHash: passwordHash,
+		sessionKey:   hex.EncodeToString(sessionKey),
 		sessionTTL:   sessionTTL,
 	}
 }
@@ -47,7 +59,7 @@ func (s *Service) Login(ctx context.Context, password string) (string, time.Time
 	if err := s.store.DeleteExpiredSessions(ctx, now); err != nil {
 		return "", time.Time{}, err
 	}
-	if err := s.store.CreateSession(ctx, hashToken(token), expiresAt); err != nil {
+	if err := s.store.CreateSession(ctx, hashToken(token), s.sessionKey, expiresAt); err != nil {
 		return "", time.Time{}, err
 	}
 	return token, expiresAt, nil
@@ -57,7 +69,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (bool, error) 
 	if token == "" {
 		return false, nil
 	}
-	return s.store.SessionExists(ctx, hashToken(token), time.Now().UTC())
+	return s.store.SessionExists(ctx, hashToken(token), s.sessionKey, time.Now().UTC())
 }
 
 func (s *Service) Logout(ctx context.Context, token string) error {

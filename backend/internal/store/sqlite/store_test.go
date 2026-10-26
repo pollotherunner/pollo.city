@@ -5,6 +5,7 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"pollo.city/internal/domain"
 	"pollo.city/internal/store"
@@ -212,6 +213,161 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	}
 	if _, err := instance.GetPost(ctx, created.Slug); !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestDraftUpdateRejectsStaleRevision(t *testing.T) {
+	ctx := context.Background()
+	instance, err := New(filepath.Join(t.TempDir(), "pollo.db"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer instance.Close()
+
+	draft, err := instance.CreateDraft(ctx, store.DraftInput{Title: "Rascunho", Body: "Versão 1"})
+	if err != nil {
+		t.Fatalf("create draft: %v", err)
+	}
+	_, err = instance.UpdateDraft(ctx, draft.ID, store.DraftInput{
+		Title:             "Rascunho",
+		Body:              "Versão concorrente",
+		ExpectedUpdatedAt: draft.UpdatedAt.Add(-time.Second),
+	})
+	if !errors.Is(err, store.ErrConflict) {
+		t.Fatalf("expected conflict, got %v", err)
+	}
+
+	updated, err := instance.UpdateDraft(ctx, draft.ID, store.DraftInput{
+		Title:             "Rascunho",
+		Body:              "Versão 2",
+		ExpectedUpdatedAt: draft.UpdatedAt,
+	})
+	if err != nil {
+		t.Fatalf("update draft: %v", err)
+	}
+	if updated.Body != "Versão 2" {
+		t.Fatalf("unexpected updated body: %q", updated.Body)
+	}
+}
+
+func TestCreateDraftRejectsDuplicateDraftForPost(t *testing.T) {
+	ctx := context.Background()
+	instance, err := New(filepath.Join(t.TempDir(), "pollo.db"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer instance.Close()
+
+	post, err := instance.CreatePost(ctx, store.PostInput{Title: "Artigo", Body: "Conteúdo"})
+	if err != nil {
+		t.Fatalf("create post: %v", err)
+	}
+	if _, err := instance.CreateDraft(ctx, store.DraftInput{PostSlug: post.Slug, Title: "Rascunho", Body: "Um"}); err != nil {
+		t.Fatalf("create first draft: %v", err)
+	}
+	if _, err := instance.CreateDraft(ctx, store.DraftInput{PostSlug: post.Slug, Title: "Outro", Body: "Dois"}); !errors.Is(err, store.ErrConflict) {
+		t.Fatalf("expected conflict, got %v", err)
+	}
+
+	detached, err := instance.CreateDraft(ctx, store.DraftInput{Title: "Solto", Body: "Três"})
+	if err != nil {
+		t.Fatalf("create detached draft: %v", err)
+	}
+	if _, err := instance.UpdateDraft(ctx, detached.ID, store.DraftInput{PostSlug: post.Slug, Title: "Solto", Body: "Três"}); !errors.Is(err, store.ErrConflict) {
+		t.Fatalf("expected update conflict, got %v", err)
+	}
+}
+
+func TestPostDeletionKeepsLinkedDraftAndCleansOrphanTags(t *testing.T) {
+	ctx := context.Background()
+	instance, err := New(filepath.Join(t.TempDir(), "pollo.db"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer instance.Close()
+
+	post, err := instance.CreatePost(ctx, store.PostInput{Title: "Artigo C", Body: "Conteúdo", Tags: []string{"C"}})
+	if err != nil {
+		t.Fatalf("create post: %v", err)
+	}
+	draft, err := instance.CreateDraft(ctx, store.DraftInput{PostSlug: post.Slug, Title: "Rascunho", Body: "Texto"})
+	if err != nil {
+		t.Fatalf("create draft: %v", err)
+	}
+
+	if err := instance.DeletePost(ctx, post.Slug); err != nil {
+		t.Fatalf("delete post: %v", err)
+	}
+	draft, err = instance.GetDraft(ctx, draft.ID)
+	if err != nil {
+		t.Fatalf("get preserved draft: %v", err)
+	}
+	if draft.PostSlug != "" {
+		t.Fatalf("expected detached draft, got slug %q", draft.PostSlug)
+	}
+
+	tags, err := instance.ListTags(ctx)
+	if err != nil {
+		t.Fatalf("list tags: %v", err)
+	}
+	for _, tag := range tags {
+		if tag.Slug == "c" {
+			t.Fatalf("orphan tag should have been removed: %+v", tag)
+		}
+	}
+
+	if _, err := instance.CreatePost(ctx, store.PostInput{Title: "Outro C#", Body: "Conteúdo", Tags: []string{"C#"}}); err != nil {
+		t.Fatalf("create post with same tag slug: %v", err)
+	}
+	tags, err = instance.ListTags(ctx)
+	if err != nil {
+		t.Fatalf("list tags after reuse: %v", err)
+	}
+	if len(tags) != 1 || tags[0].Name != "C#" {
+		t.Fatalf("expected tag name to update, got %+v", tags)
+	}
+}
+
+func TestImportDetachesDuplicateDrafts(t *testing.T) {
+	ctx := context.Background()
+	instance, err := New(filepath.Join(t.TempDir(), "pollo.db"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer instance.Close()
+
+	backup := &domain.Backup{
+		Version: 1,
+		Posts: []domain.Post{{
+			Slug:    "post",
+			Title:   "Post",
+			Body:    "Conteúdo",
+			Date:    "2026-10-26",
+			Section: "article",
+		}},
+		Drafts: []domain.Draft{
+			{ID: "draft-a", PostSlug: "post", Title: "A", Body: "A", Section: "article"},
+			{ID: "draft-b", PostSlug: "post", Title: "B", Body: "B", Section: "article"},
+		},
+	}
+	if err := instance.Import(ctx, backup); err != nil {
+		t.Fatalf("import backup: %v", err)
+	}
+	drafts, err := instance.ListDrafts(ctx)
+	if err != nil {
+		t.Fatalf("list drafts: %v", err)
+	}
+	if len(drafts) != 2 {
+		t.Fatalf("expected both drafts to be preserved, got %+v", drafts)
+	}
+	linked := 0
+	for _, draft := range drafts {
+		if draft.PostSlug == "post" {
+			linked++
+		}
+	}
+	if linked != 1 {
+		t.Fatalf("expected exactly one linked draft, got %+v", drafts)
 	}
 }
 

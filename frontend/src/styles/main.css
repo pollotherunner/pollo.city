@@ -235,6 +235,7 @@ body.intro-active {
 
 .intro.is-leaving {
   opacity: 0;
+  pointer-events: none;
 }
 
 .intro-inner {
@@ -881,7 +882,7 @@ body.graph-mode .posts-section > .shell {
 body.graph-mode .posts-toolbar {
   position: fixed;
   top: calc(var(--graph-top) + 16px);
-  left: var(--gutter);
+  left: max(var(--gutter), calc((100vw - var(--max-width)) / 2));
   z-index: 40;
   padding: 0;
 }
@@ -1593,6 +1594,16 @@ body.graph-mode .graph-view {
   vertical-align: top;
 }
 
+.prose th[align="center"],
+.prose td[align="center"] {
+  text-align: center;
+}
+
+.prose th[align="right"],
+.prose td[align="right"] {
+  text-align: right;
+}
+
 .prose th:last-child,
 .prose td:last-child {
   border-right: 0;
@@ -1861,7 +1872,7 @@ textarea.input {
 }
 
 .form-status.is-error {
-  color: #000000;
+  color: var(--ink);
   font-weight: 500;
 }
 
@@ -1910,7 +1921,7 @@ textarea.input {
 
 .comment-text {
   margin: 0;
-  color: #333333;
+  color: var(--body-ink);
   font-size: 15px;
   line-height: 1.65;
   white-space: pre-wrap;

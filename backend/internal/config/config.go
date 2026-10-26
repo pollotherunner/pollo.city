@@ -23,6 +23,8 @@ type Config struct {
 	OrphanUploadAge     time.Duration
 	CommentRateLimit    int
 	CommentRateWindow   time.Duration
+	LoginRateLimit      int
+	LoginRateWindow     time.Duration
 }
 
 func Load() (Config, error) {
@@ -91,6 +93,24 @@ func Load() (Config, error) {
 		commentRateWindow = parsed
 	}
 
+	loginRateLimit := 10
+	if value := strings.TrimSpace(os.Getenv("LOGIN_RATE_LIMIT")); value != "" {
+		parsed, err := strconv.Atoi(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("parse LOGIN_RATE_LIMIT: %w", err)
+		}
+		loginRateLimit = parsed
+	}
+
+	loginRateWindow := 15 * time.Minute
+	if value := strings.TrimSpace(os.Getenv("LOGIN_RATE_WINDOW")); value != "" {
+		parsed, err := time.ParseDuration(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("parse LOGIN_RATE_WINDOW: %w", err)
+		}
+		loginRateWindow = parsed
+	}
+
 	cfg := Config{
 		HTTPAddr:            env("HTTP_ADDR", ":8080"),
 		DatabasePath:        env("DATABASE_PATH", "data/pollo.db"),
@@ -104,6 +124,8 @@ func Load() (Config, error) {
 		OrphanUploadAge:     orphanUploadAge,
 		CommentRateLimit:    commentRateLimit,
 		CommentRateWindow:   commentRateWindow,
+		LoginRateLimit:      loginRateLimit,
+		LoginRateWindow:     loginRateWindow,
 	}
 
 	if cfg.AdminPassword == "" {
@@ -121,14 +143,20 @@ func Load() (Config, error) {
 	if cfg.MaxAudioUploadBytes <= 0 {
 		return Config{}, fmt.Errorf("MAX_AUDIO_UPLOAD_MB must be positive")
 	}
-	if cfg.OrphanUploadAge <= 0 {
-		return Config{}, fmt.Errorf("ORPHAN_UPLOAD_AGE must be positive")
+	if cfg.OrphanUploadAge < time.Hour {
+		return Config{}, fmt.Errorf("ORPHAN_UPLOAD_AGE must be at least 1h")
 	}
 	if cfg.CommentRateLimit < 0 {
 		return Config{}, fmt.Errorf("COMMENT_RATE_LIMIT must be zero or positive")
 	}
 	if cfg.CommentRateWindow <= 0 {
 		return Config{}, fmt.Errorf("COMMENT_RATE_WINDOW must be positive")
+	}
+	if cfg.LoginRateLimit < 0 {
+		return Config{}, fmt.Errorf("LOGIN_RATE_LIMIT must be zero or positive")
+	}
+	if cfg.LoginRateWindow <= 0 {
+		return Config{}, fmt.Errorf("LOGIN_RATE_WINDOW must be positive")
 	}
 
 	return cfg, nil

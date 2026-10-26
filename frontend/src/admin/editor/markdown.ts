@@ -319,7 +319,7 @@ const nodes = {
     const separators: string[] = [];
 
     for (let column = 0; column < columns; column += 1) {
-      const cell = header.child(Math.min(column, header.childCount - 1));
+      const cell = column < header.childCount ? header.child(column) : null;
       headerCells.push(cell ? cellMarkdown(cell) || " " : " ");
       const alignment = columnAlignment(rows, column);
       separators.push(alignment === "center" ? ":---:" : alignment === "right" ? "---:" : alignment === "left" ? ":---" : "---");
@@ -331,7 +331,7 @@ const nodes = {
     for (const row of rows.slice(1)) {
       const cells: string[] = [];
       for (let column = 0; column < columns; column += 1) {
-        const cell = row.child(Math.min(column, row.childCount - 1));
+        const cell = column < row.childCount ? row.child(column) : null;
         cells.push(cell ? cellMarkdown(cell) || " " : " ");
       }
       state.write(`| ${cells.join(" | ")} |\n`);
@@ -358,15 +358,37 @@ function cellMarkdown(cell: PMNode): string {
   cell.forEach((child) => {
     if (child.isTextblock) {
       const doc = editorSchema.nodes.doc!.create(null, [child]);
-      parts.push(serializer.serialize(doc, { tightLists: true }).trim());
+      const markdown = serializer
+        .serialize(doc, { tightLists: true })
+        .trim()
+        .replace(/\\\n\s*/g, "<br>")
+        .replace(/\s*\n\s*/g, " ");
+      if (markdown) {
+        parts.push(markdown);
+      }
       return;
     }
-    parts.push(child.textContent.trim());
+
+    if (child.type.name === "bullet_list" || child.type.name === "ordered_list" || child.type.name === "task_list") {
+      const items: string[] = [];
+      child.forEach((item, _offset, index) => {
+        const prefix = child.type.name === "ordered_list" ? `${index + 1}. ` : "- ";
+        items.push(prefix + item.textContent.trim());
+      });
+      if (items.length) {
+        parts.push(items.join("<br>"));
+      }
+      return;
+    }
+
+    const text = child.textContent.trim().replace(/\s*\n\s*/g, " ");
+    if (text) {
+      parts.push(text);
+    }
   });
   return parts
-    .join(" ")
+    .join("<br>")
     .replace(/\|/g, "\\|")
-    .replace(/\s*\n\s*/g, " ")
     .trim();
 }
 

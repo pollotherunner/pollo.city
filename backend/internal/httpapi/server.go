@@ -16,7 +16,8 @@ type Server struct {
 	store          store.Store
 	auth           *auth.Service
 	logger         *slog.Logger
-	commentLimiter *commentLimiter
+	commentLimiter *rateLimiter
+	loginLimiter   *rateLimiter
 }
 
 func New(cfg config.Config, st store.Store, authService *auth.Service, logger *slog.Logger) (*Server, error) {
@@ -28,7 +29,8 @@ func New(cfg config.Config, st store.Store, authService *auth.Service, logger *s
 		store:          st,
 		auth:           authService,
 		logger:         logger,
-		commentLimiter: newCommentLimiter(cfg.CommentRateLimit, cfg.CommentRateWindow),
+		commentLimiter: newRateLimiter(cfg.CommentRateLimit, cfg.CommentRateWindow),
+		loginLimiter:   newRateLimiter(cfg.LoginRateLimit, cfg.LoginRateWindow),
 	}, nil
 }
 
@@ -60,19 +62,20 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("POST /api/admin/uploads/audio", s.requireAdmin(http.HandlerFunc(s.uploadAudio)))
 	mux.Handle("GET /api/admin/export", s.requireAdmin(http.HandlerFunc(s.exportBackup)))
 	mux.Handle("POST /api/admin/import", s.requireAdmin(http.HandlerFunc(s.importBackup)))
+	mux.Handle("GET /api/admin/export.zip", s.requireAdmin(http.HandlerFunc(s.exportBackupArchive)))
+	mux.Handle("POST /api/admin/import.zip", s.requireAdmin(http.HandlerFunc(s.importBackupArchive)))
 	mux.Handle("PUT /api/admin/about", s.requireAdmin(http.HandlerFunc(s.updateAbout)))
-
-	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotFound, "not found")
-	})
 
 	mux.HandleFunc("GET /{$}", s.page("index.html"))
 	mux.HandleFunc("GET /off-topic", s.page("off-topic.html"))
 	mux.HandleFunc("GET /off-topic/{$}", s.permanentRedirect("/off-topic"))
 	mux.HandleFunc("GET /off-topic.html", s.permanentRedirect("/off-topic"))
 	mux.HandleFunc("GET /arquivo", s.page("arquivo.html"))
-	mux.HandleFunc("GET /sobre", s.page("sobre.html"))
-	mux.HandleFunc("GET /post/{slug}", s.page("post.html"))
+	mux.HandleFunc("GET /arquivo/{$}", s.permanentRedirect("/arquivo"))
+	mux.HandleFunc("GET /sobre", s.aboutPage)
+	mux.HandleFunc("GET /sobre/{$}", s.permanentRedirect("/sobre"))
+	mux.HandleFunc("GET /post/{slug}", s.postPage)
+	mux.HandleFunc("GET /post/{slug}/{$}", s.trailingSlashPostRedirect)
 	mux.HandleFunc("GET /post", s.permanentRedirect("/"))
 	mux.HandleFunc("GET /post/{$}", s.permanentRedirect("/"))
 	mux.HandleFunc("GET /favicon.svg", s.page("favicon.svg"))

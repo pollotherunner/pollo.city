@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"pollo.city/internal/store"
+	"pollo.city/internal/uploads"
 )
 
 type aboutRequest struct {
@@ -41,6 +42,11 @@ func (s *Server) updateAbout(w http.ResponseWriter, r *http.Request) {
 	}
 	if len([]rune(lede)) > 500 {
 		writeError(w, http.StatusBadRequest, "lede is too long")
+		return
+	}
+	unlockFiles := uploads.LockFilesRead()
+	defer unlockFiles()
+	if !s.validateUploadReferences(w, request.Body) {
 		return
 	}
 

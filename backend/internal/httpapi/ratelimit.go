@@ -3,35 +3,36 @@ package httpapi
 import (
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
 
-const maxCommentRateLimitEntries = 100_000
+const maxRateLimitEntries = 100_000
 
-type commentRateEntry struct {
+type rateEntry struct {
 	count int
 	reset time.Time
 }
 
-type commentLimiter struct {
+type rateLimiter struct {
 	mu          sync.Mutex
 	limit       int
 	window      time.Duration
-	entries     map[string]commentRateEntry
+	entries     map[string]rateEntry
 	lastCleanup time.Time
 }
 
-func newCommentLimiter(limit int, window time.Duration) *commentLimiter {
-	return &commentLimiter{
+func newRateLimiter(limit int, window time.Duration) *rateLimiter {
+	return &rateLimiter{
 		limit:   limit,
 		window:  window,
-		entries: make(map[string]commentRateEntry),
+		entries: make(map[string]rateEntry),
 	}
 }
 
-func (l *commentLimiter) allow(key string, now time.Time) (bool, time.Duration) {
+func (l *rateLimiter) allow(key string, now time.Time) (bool, time.Duration) {
 	if l == nil || l.limit <= 0 || l.window <= 0 {
 		return true, 0
 	}
@@ -46,7 +47,13 @@ func (l *commentLimiter) allow(key string, now time.Time) (bool, time.Duration) 
 
 	entry, exists := l.entries[key]
 	if !exists || !now.Before(entry.reset) {
-		l.entries[key] = commentRateEntry{count: 1, reset: now.Add(l.window)}
+		if !exists && len(l.entries) >= maxRateLimitEntries {
+			l.cleanup(now)
+			if len(l.entries) >= maxRateLimitEntries {
+				l.entries = make(map[string]rateEntry)
+			}
+		}
+		l.entries[key] = rateEntry{count: 1, reset: now.Add(l.window)}
 		return true, 0
 	}
 	if entry.count >= l.limit {
@@ -58,18 +65,39 @@ func (l *commentLimiter) allow(key string, now time.Time) (bool, time.Duration) 
 	return true, 0
 }
 
-func (l *commentLimiter) cleanup(now time.Time) {
+func (l *rateLimiter) reset(key string) {
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	delete(l.entries, key)
+}
+
+func (l *rateLimiter) cleanup(now time.Time) {
 	for key, entry := range l.entries {
 		if !now.Before(entry.reset) {
 			delete(l.entries, key)
 		}
 	}
-	if len(l.entries) < maxCommentRateLimitEntries {
+	if len(l.entries) < maxRateLimitEntries {
 		return
 	}
 
 	// Bound memory if a large number of distinct clients hit the endpoint.
-	l.entries = make(map[string]commentRateEntry)
+	l.entries = make(map[string]rateEntry)
+}
+
+func writeRateLimitError(w http.ResponseWriter, retryAfter time.Duration, message string) {
+	seconds := int(retryAfter / time.Second)
+	if retryAfter%time.Second != 0 {
+		seconds += 1
+	}
+	if seconds < 1 {
+		seconds = 1
+	}
+	w.Header().Set("Retry-After", strconv.Itoa(seconds))
+	writeError(w, http.StatusTooManyRequests, message)
 }
 
 func clientRateLimitKey(r *http.Request) string {

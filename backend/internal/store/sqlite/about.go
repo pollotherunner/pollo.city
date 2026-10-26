@@ -10,8 +10,6 @@ import (
 	"pollo.city/internal/store"
 )
 
-const defaultAboutTitle = "Sobre"
-
 type execer interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 }

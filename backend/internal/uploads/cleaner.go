@@ -9,7 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"pollo.city/internal/domain"
@@ -24,6 +26,18 @@ var (
 
 var audioExtensions = []string{".aac", ".m4a", ".mp3", ".ogg", ".opus", ".wav", ".webm"}
 
+var fileMu sync.RWMutex
+
+func LockFilesRead() func() {
+	fileMu.RLock()
+	return fileMu.RUnlock
+}
+
+func LockFilesWrite() func() {
+	fileMu.Lock()
+	return fileMu.Unlock
+}
+
 // Store is the subset of the database used to discover referenced uploads.
 type Store interface {
 	ListPosts(ctx context.Context) ([]domain.Post, error)
@@ -33,13 +47,14 @@ type Store interface {
 }
 
 type Report struct {
-	Scanned       int
-	Kept          int
-	Deleted       int
-	SkippedRecent int
-	Ignored       int
-	Failed        int
-	FreedBytes    int64
+	Scanned              int
+	Kept                 int
+	Deleted              int
+	SkippedRecent        int
+	Ignored              int
+	Failed               int
+	FreedBytes           int64
+	SkippedEmptyDatabase bool
 }
 
 type Cleaner struct {
@@ -57,6 +72,9 @@ func NewCleaner(st Store, dir string, minAge time.Duration, logger *slog.Logger)
 }
 
 func (c *Cleaner) Run(ctx context.Context) (Report, error) {
+	unlockFiles := LockFilesWrite()
+	defer unlockFiles()
+
 	var report Report
 	err := c.store.WithContentReadLock(func() error {
 		var runErr error
@@ -84,6 +102,14 @@ func (c *Cleaner) run(ctx context.Context) (Report, error) {
 
 	referenced := collectReferences(posts, drafts, about)
 
+	// A fresh or misconfigured database has no references. Deleting every
+	// managed upload in that state would turn a configuration mistake into
+	// irreversible media loss, so leave the directory untouched.
+	if len(posts) == 0 && len(drafts) == 0 && aboutIsEmpty(about) {
+		report.SkippedEmptyDatabase = true
+		return report, nil
+	}
+
 	entries, err := os.ReadDir(c.dir)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -94,6 +120,9 @@ func (c *Cleaner) run(ctx context.Context) (Report, error) {
 
 	var failures []error
 	for _, entry := range entries {
+		if err := ctx.Err(); err != nil {
+			return report, err
+		}
 		if entry.IsDir() {
 			continue
 		}
@@ -124,6 +153,9 @@ func (c *Cleaner) run(ctx context.Context) (Report, error) {
 			continue
 		}
 
+		if err := ctx.Err(); err != nil {
+			return report, err
+		}
 		if err := os.Remove(filepath.Join(c.dir, name)); err != nil {
 			report.Failed++
 			failures = append(failures, fmt.Errorf("remove upload %s: %w", name, err))
@@ -139,6 +171,12 @@ func (c *Cleaner) run(ctx context.Context) (Report, error) {
 		return report, errors.Join(failures...)
 	}
 	return report, nil
+}
+
+func aboutIsEmpty(about *domain.About) bool {
+	return about == nil || (strings.TrimSpace(about.Title) == "" &&
+		strings.TrimSpace(about.Lede) == "" &&
+		strings.TrimSpace(about.Body) == "")
 }
 
 func collectReferences(posts []domain.Post, drafts []domain.Draft, about *domain.About) map[string]struct{} {
@@ -173,6 +211,31 @@ func addReferences(referenced map[string]struct{}, text string) {
 	}
 }
 
+// MissingFiles returns referenced upload names that do not exist in dir.
+func MissingFiles(dir string, texts ...string) ([]string, error) {
+	referenced := make(map[string]struct{})
+	for _, text := range texts {
+		addReferences(referenced, text)
+	}
+
+	missing := make([]string, 0)
+	for name := range referenced {
+		info, err := os.Stat(filepath.Join(dir, name))
+		if errors.Is(err, fs.ErrNotExist) {
+			missing = append(missing, name)
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if !info.Mode().IsRegular() {
+			missing = append(missing, name)
+		}
+	}
+	sort.Strings(missing)
+	return missing, nil
+}
+
 func isReferenced(name string, referenced map[string]struct{}) bool {
 	if _, ok := referenced[name]; ok {
 		return true
@@ -196,5 +259,9 @@ func isReferencedWaveform(name string, referenced map[string]struct{}) bool {
 }
 
 func isManagedUpload(name string) bool {
-	return managedUpload.MatchString(name) || strings.HasPrefix(name, ".audio-")
+	return IsStoredName(name) || strings.HasPrefix(name, ".audio-")
+}
+
+func IsStoredName(name string) bool {
+	return managedUpload.MatchString(name)
 }

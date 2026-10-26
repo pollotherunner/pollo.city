@@ -4,6 +4,7 @@ import { countWords, initials, readingMinutes } from "./strings";
 describe("strings", () => {
   it("counts words without markdown punctuation", () => {
     expect(countWords("## Olá\n\nConteúdo **forte**.")).toBe(3);
+    expect(countWords("```go\nfunc main() {}\n```\n\n[link](https://example.com)")).toBe(1);
     expect(countWords("")).toBe(0);
   });
 

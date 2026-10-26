@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -10,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"pollo.city/internal/uploads"
 )
 
 var imageExtensions = map[string]string{
@@ -33,16 +36,6 @@ var audioExtensions = map[string]string{
 	"audio/x-wav":     ".wav",
 	"video/mp4":       ".m4a",
 	"video/webm":      ".webm",
-}
-
-var audioFilenameExtensions = map[string]struct{}{
-	".aac":  {},
-	".m4a":  {},
-	".mp3":  {},
-	".ogg":  {},
-	".opus": {},
-	".wav":  {},
-	".webm": {},
 }
 
 func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +71,9 @@ func (s *Server) uploadImage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnsupportedMediaType, "unsupported image type")
 		return
 	}
+
+	unlockFiles := uploads.LockFilesRead()
+	defer unlockFiles()
 
 	random := make([]byte, 16)
 	if _, err := rand.Read(random); err != nil {
@@ -152,7 +148,7 @@ func (s *Server) uploadAudio(w http.ResponseWriter, r *http.Request) {
 	contentType := http.DetectContentType(head)
 	extension, ok := audioExtensions[contentType]
 	if !ok {
-		extension, ok = audioFilenameExtension(header.Filename)
+		extension, ok = audioSignatureExtension(head, header.Filename)
 	}
 	if !ok {
 		writeError(w, http.StatusUnsupportedMediaType, "unsupported audio type")
@@ -210,6 +206,9 @@ func (s *Server) uploadAudio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unlockFiles := uploads.LockFilesRead()
+	defer unlockFiles()
+
 	target := filepath.Join(s.cfg.UploadsDir, name)
 	if err := os.Rename(tempName, target); err != nil {
 		s.logError("save audio upload failed", err)
@@ -240,8 +239,28 @@ func randomUploadName(extension string) (string, error) {
 	return hex.EncodeToString(random) + extension, nil
 }
 
-func audioFilenameExtension(filename string) (string, bool) {
-	extension := strings.ToLower(filepath.Ext(filename))
-	_, ok := audioFilenameExtensions[extension]
-	return extension, ok
+func audioSignatureExtension(head []byte, filename string) (string, bool) {
+	originalExtension := strings.ToLower(filepath.Ext(filename))
+	switch {
+	case len(head) >= 3 && string(head[:3]) == "ID3":
+		return ".mp3", true
+	case len(head) >= 4 && string(head[:4]) == "OggS":
+		if originalExtension == ".opus" {
+			return ".opus", true
+		}
+		return ".ogg", true
+	case len(head) >= 4 && bytes.Equal(head[:4], []byte{0x1A, 0x45, 0xDF, 0xA3}):
+		return ".webm", true
+	case len(head) >= 12 && string(head[:4]) == "RIFF" && string(head[8:12]) == "WAVE":
+		return ".wav", true
+	case len(head) >= 8 && string(head[4:8]) == "ftyp":
+		return ".m4a", true
+	case len(head) >= 2 && head[0] == 0xFF && head[1]&0xE0 == 0xE0:
+		if originalExtension == ".aac" {
+			return ".aac", true
+		}
+		return ".mp3", true
+	default:
+		return "", false
+	}
 }

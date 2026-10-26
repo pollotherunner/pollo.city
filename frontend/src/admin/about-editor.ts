@@ -22,6 +22,9 @@ export class AboutEditor {
   private editor: MarkdownEditor | null = null;
   private dirty = false;
   private syncing = false;
+  private saving = false;
+  private revision = 0;
+  private uploads = 0;
 
   constructor(private readonly callbacks: AboutEditorCallbacks) {}
 
@@ -65,6 +68,10 @@ export class AboutEditor {
     }
 
     this.dirty = false;
+    this.saving = false;
+    this.revision = 0;
+    this.uploads = 0;
+    this.updateBusyControls();
     if (this.editor) {
       this.setSaveState(about.updatedAt ? `Atualizado em ${formatDateTime(about.updatedAt)}` : "");
     }
@@ -85,8 +92,26 @@ export class AboutEditor {
         }
       },
       onError: (message) => this.setSaveState(message, true),
+      onUploadStart: () => this.beginUpload(),
+      onUploadEnd: () => this.endUpload(),
     });
     return this.editor;
+  }
+
+  private beginUpload(): void {
+    this.uploads += 1;
+    this.updateBusyControls();
+  }
+
+  private endUpload(): void {
+    this.uploads = Math.max(0, this.uploads - 1);
+    this.updateBusyControls();
+  }
+
+  private updateBusyControls(): void {
+    const busy = this.saving || this.uploads > 0;
+    this.backButton.disabled = busy;
+    this.saveButton.disabled = busy;
   }
 
   private markdown(): string {
@@ -102,6 +127,7 @@ export class AboutEditor {
 
   private markDirty(): void {
     this.dirty = true;
+    this.revision += 1;
     this.updateStats();
     this.setSaveState("Alterações não salvas");
   }
@@ -112,6 +138,13 @@ export class AboutEditor {
   }
 
   private async save(): Promise<void> {
+    if (this.saving) {
+      return;
+    }
+    if (this.uploads > 0) {
+      this.setSaveState("Aguarde o envio das mídias terminar.", true);
+      return;
+    }
     const title = this.titleField.value.trim();
     if (!title) {
       this.setSaveState("Escreva um título.", true);
@@ -119,7 +152,9 @@ export class AboutEditor {
       return;
     }
 
-    this.saveButton.disabled = true;
+    const revision = this.revision;
+    this.saving = true;
+    this.updateBusyControls();
     this.setSaveState("Salvando…");
     try {
       const about = await api.updateAbout({
@@ -127,18 +162,28 @@ export class AboutEditor {
         lede: this.ledeField.value.trim(),
         body: this.markdown(),
       });
-      this.titleField.value = about.title;
-      this.ledeField.value = about.lede;
-      this.dirty = false;
-      this.setSaveState("Sobre salvo");
+      if (this.revision === revision) {
+        this.titleField.value = about.title;
+        this.ledeField.value = about.lede;
+        this.dirty = false;
+        this.setSaveState("Sobre salvo");
+      } else {
+        this.dirty = true;
+        this.setSaveState("Sobre salvo, mas há alterações não salvas.");
+      }
     } catch {
       this.setSaveState("Não foi possível salvar a página Sobre.", true);
     } finally {
-      this.saveButton.disabled = false;
+      this.saving = false;
+      this.updateBusyControls();
     }
   }
 
   private async close(): Promise<void> {
+    if (this.saving || this.uploads > 0) {
+      this.setSaveState("Aguarde o envio das mídias terminar.", true);
+      return;
+    }
     if (this.dirty && !window.confirm("Descartar as alterações da página Sobre?")) {
       return;
     }
@@ -149,7 +194,7 @@ export class AboutEditor {
     document.addEventListener(
       "keydown",
       (event) => {
-        if (!this.isOpen() || !(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") {
+        if (!this.isOpen() || this.saving || !(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") {
           return;
         }
         event.preventDefault();

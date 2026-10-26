@@ -8,7 +8,7 @@ import (
 )
 
 func TestCommentLimiterWindow(t *testing.T) {
-	limiter := newCommentLimiter(2, time.Minute)
+	limiter := newRateLimiter(2, time.Minute)
 	now := time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC)
 
 	if allowed, _ := limiter.allow("203.0.113.10", now); !allowed {
@@ -30,7 +30,7 @@ func TestCommentLimiterWindow(t *testing.T) {
 }
 
 func TestCommentLimiterCanBeDisabled(t *testing.T) {
-	limiter := newCommentLimiter(0, time.Minute)
+	limiter := newRateLimiter(0, time.Minute)
 	now := time.Now()
 	for index := 0; index < 10; index += 1 {
 		if allowed, _ := limiter.allow("203.0.113.10", now); !allowed {

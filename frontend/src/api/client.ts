@@ -98,9 +98,17 @@ export class ApiClient {
 
     const payload = await readJson(response);
     if (!response.ok) {
+      this.notifyUnauthorized(path, response);
       throw new ApiError(errorMessage(payload) ?? "Não foi possível concluir a operação.", response.status);
     }
     return payload as T;
+  }
+
+  private notifyUnauthorized(path: string, response: Response): void {
+    if (response.status !== 401 || path === "/admin/login" || typeof window === "undefined") {
+      return;
+    }
+    window.dispatchEvent(new Event("pollo:unauthorized"));
   }
 
   private invalidateContent(): void {
@@ -123,8 +131,15 @@ export class ApiClient {
   }
 
   async getPost(slug: string): Promise<Post | null> {
-    const posts = await this.getPosts();
-    return posts.find((post) => post.slug === slug) ?? null;
+    try {
+      const payload = await this.request<PostResponse>(`/posts/${encodeURIComponent(slug)}`);
+      return payload.post;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async getTags(force = false): Promise<Tag[]> {
@@ -276,6 +291,7 @@ export class ApiClient {
 
     const payload = await readJson(response);
     if (!response.ok) {
+      this.notifyUnauthorized(path, response);
       throw new ApiError(errorMessage(payload) ?? errorText, response.status);
     }
     return (payload as UploadResponse).url;
@@ -283,6 +299,43 @@ export class ApiClient {
 
   async exportBackup(): Promise<Backup> {
     return this.request<Backup>("/admin/export");
+  }
+
+  async exportBackupArchive(): Promise<Blob> {
+    let response: Response;
+    try {
+      response = await this.fetchImpl(`${this.baseUrl}/admin/export.zip`, {
+        credentials: "same-origin",
+        headers: { Accept: "application/zip" },
+      });
+    } catch {
+      throw new ApiError("Não foi possível conectar ao servidor.", 0);
+    }
+    if (!response.ok) {
+      this.notifyUnauthorized("/admin/export.zip", response);
+      throw new ApiError("Não foi possível exportar os dados.", response.status);
+    }
+    return response.blob();
+  }
+
+  async importBackupArchive(file: File | Blob): Promise<void> {
+    let response: Response;
+    try {
+      response = await this.fetchImpl(`${this.baseUrl}/admin/import.zip`, {
+        method: "POST",
+        body: file,
+        credentials: "same-origin",
+        headers: { Accept: "application/json", "Content-Type": "application/zip" },
+      });
+    } catch {
+      throw new ApiError("Não foi possível conectar ao servidor.", 0);
+    }
+    const payload = await readJson(response);
+    if (!response.ok) {
+      this.notifyUnauthorized("/admin/import.zip", response);
+      throw new ApiError(errorMessage(payload) ?? "Não foi possível importar os dados.", response.status);
+    }
+    this.invalidateAll();
   }
 
   async importBackup(backup: Backup): Promise<void> {

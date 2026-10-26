@@ -80,6 +80,7 @@ export interface DraftInput {
   body: string;
   section: Section;
   audio: string;
+  expectedUpdatedAt?: string;
 }
 
 export interface CommentInput {

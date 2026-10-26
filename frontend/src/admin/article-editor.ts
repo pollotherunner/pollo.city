@@ -1,4 +1,4 @@
-import { api } from "@/api/client";
+import { api, ApiError } from "@/api/client";
 import type { Draft, Post, PostInput } from "@/api/types";
 import { byId } from "@/lib/dom";
 import { countWords, readingMinutes } from "@/lib/strings";
@@ -47,6 +47,8 @@ export class ArticleEditor {
     {
       onChange: () => this.markChanged(),
       onError: (message) => this.setSaveState(message, true),
+      onUploadStart: () => this.beginUpload(),
+      onUploadEnd: () => this.endUpload(),
     },
   );
   private readonly audioField = new AudioField(
@@ -61,11 +63,14 @@ export class ArticleEditor {
     {
       onChange: () => this.markChanged(),
       onError: (message) => this.setSaveState(message, true),
+      onUploadStart: () => this.beginUpload(),
+      onUploadEnd: () => this.endUpload(),
     },
   );
 
   private editor: MarkdownEditor | null = null;
   private draftId: string | null = null;
+  private draftUpdatedAt: string | null = null;
   private postSlug: string | null = null;
   private dirty = false;
   private revision = 0;
@@ -73,6 +78,10 @@ export class ArticleEditor {
   private saveChain: Promise<void> = Promise.resolve();
   private publishing = false;
   private syncingEditor = false;
+  private uploads = 0;
+  private operationId = 0;
+  private lastPersistFailed = false;
+  private persistConflict = false;
 
   constructor(private readonly callbacks: ArticleEditorCallbacks) {}
 
@@ -105,13 +114,20 @@ export class ArticleEditor {
 
   async open(source: ArticleSource | null): Promise<void> {
     this.clearAutosave();
+    this.operationId += 1;
+    const operation = this.operationId;
     this.draftId = source?.kind === "draft" ? source.draft.id : null;
+    this.draftUpdatedAt = source?.kind === "draft" ? source.draft.updatedAt : null;
     this.postSlug = source?.kind === "draft" ? (source.draft.postSlug ?? null) : source?.post.slug ?? null;
     this.dirty = false;
     this.revision = 0;
     this.publishing = false;
-    this.publishButton.disabled = false;
+    this.uploads = 0;
+    this.lastPersistFailed = false;
+    this.persistConflict = false;
+    this.root.inert = false;
     this.saveChain = Promise.resolve();
+    this.updateBusyControls();
 
     const post = source?.kind === "post" ? source.post : null;
     const draft = source?.kind === "draft" ? source.draft : null;
@@ -128,11 +144,18 @@ export class ArticleEditor {
     } catch {
       this.tagEditor.setAvailable([]);
     }
+    if (operation !== this.operationId) {
+      return;
+    }
     this.tagEditor.setTags(content?.tags ?? []);
 
     this.syncingEditor = true;
     try {
       this.ensureEditor();
+      if (operation !== this.operationId) {
+        this.syncingEditor = false;
+        return;
+      }
       this.editor?.setMarkdown(content?.body ?? "", false);
       this.updateStats();
       window.setTimeout(() => {
@@ -164,8 +187,27 @@ export class ArticleEditor {
         }
       },
       onError: (message) => this.setSaveState(message, true),
+      onUploadStart: () => this.beginUpload(),
+      onUploadEnd: () => this.endUpload(),
     });
     return this.editor;
+  }
+
+  private beginUpload(): void {
+    this.uploads += 1;
+    this.updateBusyControls();
+  }
+
+  private endUpload(): void {
+    this.uploads = Math.max(0, this.uploads - 1);
+    this.updateBusyControls();
+  }
+
+  private updateBusyControls(): void {
+    const busy = this.publishing || this.uploads > 0;
+    this.backButton.disabled = busy;
+    this.saveButton.disabled = busy;
+    this.publishButton.disabled = busy;
   }
 
   private markdown(): string {
@@ -216,13 +258,35 @@ export class ArticleEditor {
   }
 
   private hasContent(data: PostInput): boolean {
-    return Boolean(data.title || data.excerpt || data.body || data.thumbnail || data.audio);
+    return Boolean(
+      data.title ||
+        data.excerpt ||
+        data.body ||
+        data.thumbnail ||
+        data.audio ||
+        data.tags.length ||
+        data.section === "off-topic",
+    );
   }
 
-  private async persistDraft(announce: boolean): Promise<void> {
+  private persistError(error: unknown): void {
+    this.persistConflict = error instanceof ApiError && error.status === 409;
+    if (this.persistConflict) {
+      this.setSaveState("Rascunho alterado em outra aba. Recarregue antes de salvar.", true);
+      return;
+    }
+    if (error instanceof ApiError && error.status === 401) {
+      this.setSaveState("Sessão expirada. Entre novamente.", true);
+      return;
+    }
+    this.setSaveState("Não foi possível salvar o rascunho.", true);
+  }
+
+  private async persistDraft(announce: boolean): Promise<boolean> {
     this.clearAutosave();
     const data = this.collect();
     const revision = this.revision;
+    this.lastPersistFailed = false;
 
     if (!this.hasContent(data)) {
       this.saveChain = this.saveChain
@@ -231,47 +295,71 @@ export class ArticleEditor {
             return;
           }
           const draftId = this.draftId;
-          this.draftId = null;
           await api.deleteDraft(draftId);
+          this.draftId = null;
+          this.draftUpdatedAt = null;
+          this.lastPersistFailed = false;
+          this.persistConflict = false;
         })
-        .catch(() => undefined);
+        .catch((error: unknown) => {
+          this.lastPersistFailed = true;
+          this.persistError(error);
+        });
       await this.saveChain;
-      if (this.revision === revision) {
+      if (!this.lastPersistFailed && this.revision === revision) {
         this.dirty = false;
       }
-      if (announce) {
+      if (announce && !this.lastPersistFailed) {
         this.setSaveState("Escreva algo primeiro.", true);
       }
-      return;
+      return !this.lastPersistFailed;
     }
 
     this.saveChain = this.saveChain
       .then(async () => {
-        const payload = toDraftInput(data, this.postSlug);
+        const payload = toDraftInput(data, this.postSlug, this.draftUpdatedAt);
         const draft = this.draftId
           ? await api.updateDraft(this.draftId, payload)
           : await api.createDraft(payload);
         this.draftId = draft.id;
+        this.draftUpdatedAt = draft.updatedAt;
+        this.lastPersistFailed = false;
+        this.persistConflict = false;
         if (this.revision === revision) {
           this.dirty = false;
           this.setSaveState("Rascunho salvo");
         }
       })
-      .catch(() => {
-        this.setSaveState("Não foi possível salvar o rascunho.", true);
+      .catch((error: unknown) => {
+        this.lastPersistFailed = true;
+        this.persistError(error);
       });
 
     await this.saveChain;
+    return !this.lastPersistFailed;
   }
 
   private async saveDraft(): Promise<void> {
+    if (this.publishing || this.uploads > 0) {
+      this.setSaveState("Aguarde o envio das mídias terminar.", true);
+      return;
+    }
     await this.persistDraft(true);
   }
 
   private async close(): Promise<void> {
+    if (this.publishing || this.uploads > 0) {
+      this.setSaveState("Aguarde o envio das mídias terminar.", true);
+      return;
+    }
+
     this.clearAutosave();
+    let saved = true;
     if (this.dirty || this.draftId) {
-      await this.persistDraft(false);
+      saved = await this.persistDraft(false);
+    }
+    if (!saved && !window.confirm("Não foi possível salvar o rascunho. Sair mesmo assim e perder as alterações?")) {
+      return;
     }
     await this.callbacks.onClose();
   }
@@ -280,17 +368,22 @@ export class ArticleEditor {
     if (this.publishing) {
       return;
     }
-    if (this.audioField.isUploading()) {
-      this.setSaveState("Aguarde o envio do áudio terminar.", true);
+    if (this.uploads > 0 || this.audioField.isUploading()) {
+      this.setSaveState("Aguarde o envio das mídias terminar.", true);
       return;
     }
 
     this.clearAutosave();
     this.publishing = true;
-    this.publishButton.disabled = true;
+    this.updateBusyControls();
+    const operation = this.operationId;
 
     try {
       await this.saveChain;
+      if (this.persistConflict) {
+        this.setSaveState("Rascunho alterado em outra aba. Recarregue antes de publicar.", true);
+        return;
+      }
       const data = this.collect();
 
       if (!data.title) {
@@ -304,28 +397,42 @@ export class ArticleEditor {
         return;
       }
 
+      this.root.inert = true;
       const post = this.postSlug
         ? await api.updatePost(this.postSlug, data)
         : await api.createPost(data);
 
+      if (operation !== this.operationId) {
+        return;
+      }
+
       if (this.draftId) {
         const draftId = this.draftId;
-        this.draftId = null;
         try {
           await api.deleteDraft(draftId);
-        } catch {
-          // Publishing succeeds even if draft cleanup fails.
+          this.draftId = null;
+          this.draftUpdatedAt = null;
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 401) {
+            throw error;
+          }
+          // Keep the draft visible in the dashboard if cleanup fails.
         }
       }
 
       this.postSlug = post.slug;
       this.dirty = false;
       await this.callbacks.onPublished(post);
-    } catch {
-      this.setSaveState("Não foi possível publicar o artigo.", true);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        this.setSaveState("Sessão expirada. Entre novamente.", true);
+      } else {
+        this.setSaveState("Não foi possível publicar o artigo.", true);
+      }
     } finally {
+      this.root.inert = false;
       this.publishing = false;
-      this.publishButton.disabled = false;
+      this.updateBusyControls();
     }
   }
 
@@ -334,6 +441,12 @@ export class ArticleEditor {
       "keydown",
       (event) => {
         if (!this.isOpen() || !(event.ctrlKey || event.metaKey)) {
+          return;
+        }
+        if (event.target instanceof Element && event.target.closest(".pe-dialog")) {
+          return;
+        }
+        if (this.publishing) {
           return;
         }
         if (event.key.toLowerCase() === "s") {

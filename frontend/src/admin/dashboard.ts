@@ -49,7 +49,7 @@ export class Dashboard {
 
   async refresh(): Promise<void> {
     try {
-      [this.posts, this.drafts] = await Promise.all([api.getPosts(), api.getDrafts()]);
+      [this.posts, this.drafts] = await Promise.all([api.getPosts(true), api.getDrafts()]);
       this.render();
     } catch {
       this.posts = [];

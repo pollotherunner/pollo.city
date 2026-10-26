@@ -25,6 +25,12 @@ hljs.registerLanguage("sql", sql);
 hljs.registerLanguage("typescript", typescript);
 hljs.registerLanguage("xml", xml);
 
+DOMPurify.addHook("uponSanitizeElement", (node, data) => {
+  if (data.tagName === "input" && node instanceof HTMLElement && node.getAttribute("type") !== "checkbox") {
+    node.remove();
+  }
+});
+
 export function renderMarkdown(source: string): string {
   const html = markdownIt.render(source);
 
@@ -33,12 +39,13 @@ export function renderMarkdown(source: string): string {
     ADD_ATTR: ["target", "rel", "loading", "disabled", "checked", "align"],
     ADD_DATA_URI_TAGS: ["img"],
     FORBID_ATTR: ["style"],
+    FORBID_TAGS: ["button", "form", "option", "select", "textarea"],
   });
 }
 
 export function enhanceContent(container: HTMLElement): void {
   container.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((link) => {
-    if (/^https?:\/\//i.test(link.getAttribute("href") ?? "")) {
+    if (/^(https?:)?\/\//i.test(link.getAttribute("href") ?? "")) {
       link.target = "_blank";
       link.rel = "noopener noreferrer";
     }

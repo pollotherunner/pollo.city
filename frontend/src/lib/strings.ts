@@ -6,7 +6,15 @@ export function normalizeSearch(value: string): string {
 }
 
 export function countWords(value: string): number {
-  const clean = value.replace(/[#>*_`\-\[\]()]/g, " ").trim();
+  const clean = value
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`[^`]*`/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[#>*_~\-\[\]()]/g, " ")
+    .trim();
   return clean ? clean.split(/\s+/).filter((token) => /[\p{L}\p{N}]/u.test(token)).length : 0;
 }
 

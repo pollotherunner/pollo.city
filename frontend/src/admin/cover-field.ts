@@ -11,10 +11,14 @@ interface CoverFieldElements {
 interface CoverFieldCallbacks {
   onChange(): void;
   onError(message: string): void;
+  onUploadStart?(): void;
+  onUploadEnd?(): void;
 }
 
 export class CoverField {
   private value = "";
+  private uploading = false;
+  private fallbackApplied = false;
 
   constructor(
     private readonly elements: CoverFieldElements,
@@ -30,18 +34,31 @@ export class CoverField {
       if (!this.value) {
         return;
       }
-      this.setValue("");
+      // Keep the saved value; a transient load failure must not erase the
+      // thumbnail from the draft without an explicit user action.
+      if (this.fallbackApplied) {
+        return;
+      }
+      this.fallbackApplied = true;
+      this.elements.preview.src = DEFAULT_THUMBNAIL;
+      this.elements.label.textContent = "Trocar thumbnail";
+      this.callbacks.onError("Não foi possível carregar a thumbnail.");
     });
   }
 
   setValue(value: string): void {
     this.value = value;
+    this.fallbackApplied = false;
     this.elements.preview.src = value || DEFAULT_THUMBNAIL;
     this.elements.label.textContent = value ? "Trocar thumbnail" : "Adicionar thumbnail";
   }
 
   getValue(): string {
     return this.value;
+  }
+
+  isUploading(): boolean {
+    return this.uploading;
   }
 
   private async upload(): Promise<void> {
@@ -51,12 +68,17 @@ export class CoverField {
       return;
     }
 
+    this.uploading = true;
+    this.callbacks.onUploadStart?.();
     try {
       const url = await api.uploadImage(file);
       this.setValue(url);
       this.callbacks.onChange();
     } catch {
       this.callbacks.onError("Não foi possível carregar a imagem.");
+    } finally {
+      this.uploading = false;
+      this.callbacks.onUploadEnd?.();
     }
   }
 }

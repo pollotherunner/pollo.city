@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 
 	"pollo.city/internal/store"
 )
@@ -30,6 +31,8 @@ func (s *Server) writeStoreError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusNotFound, "not found")
 	case errors.Is(err, store.ErrConflict):
 		writeError(w, http.StatusConflict, "conflict")
+	case errors.Is(err, store.ErrInvalid):
+		writeError(w, http.StatusBadRequest, "invalid data")
 	default:
 		s.logError("store operation failed", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
@@ -37,6 +40,10 @@ func (s *Server) writeStoreError(w http.ResponseWriter, err error) {
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, destination any, limit int64) bool {
+	if contentType := strings.ToLower(strings.TrimSpace(r.Header.Get("Content-Type"))); !strings.HasPrefix(contentType, "application/json") {
+		writeError(w, http.StatusUnsupportedMediaType, "content type must be application/json")
+		return false
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()

@@ -18,6 +18,11 @@ describe("editor payloads", () => {
       ...content,
       postSlug: "meu-artigo",
     });
+    expect(toDraftInput(content, "meu-artigo", "2026-10-26T12:00:00Z")).toEqual({
+      ...content,
+      postSlug: "meu-artigo",
+      expectedUpdatedAt: "2026-10-26T12:00:00Z",
+    });
     expect("postSlug" in content).toBe(false);
   });
 

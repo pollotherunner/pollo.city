@@ -142,6 +142,41 @@ func TestCollectReferencesMatchesExactUploadNames(t *testing.T) {
 	}
 }
 
+func TestCleanerDoesNotDeleteWhenDatabaseIsEmpty(t *testing.T) {
+	database, err := sqlite.New(filepath.Join(t.TempDir(), "pollo.db"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer database.Close()
+
+	uploadsDir := t.TempDir()
+	name := fmt.Sprintf("%032x.png", 77)
+	path := filepath.Join(uploadsDir, name)
+	if err := os.WriteFile(path, []byte("orphan"), 0o644); err != nil {
+		t.Fatalf("write upload: %v", err)
+	}
+	old := time.Now().Add(-48 * time.Hour)
+	if err := os.Chtimes(path, old, old); err != nil {
+		t.Fatalf("set upload time: %v", err)
+	}
+
+	report, err := NewCleaner(
+		database,
+		uploadsDir,
+		24*time.Hour,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	).Run(context.Background())
+	if err != nil {
+		t.Fatalf("run cleaner: %v", err)
+	}
+	if !report.SkippedEmptyDatabase || report.Deleted != 0 {
+		t.Fatalf("unexpected report: %+v", report)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("empty database should not delete media: %v", err)
+	}
+}
+
 func TestCleanerIgnoresMissingUploadsDirectory(t *testing.T) {
 	database, err := sqlite.New(filepath.Join(t.TempDir(), "pollo.db"))
 	if err != nil {
