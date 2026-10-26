@@ -33,8 +33,10 @@ export class CoverField {
       if (!this.value) {
         return;
       }
-      this.setValue("");
-      this.callbacks.onChange();
+      // Keep the saved value; a transient load failure must not erase the
+      // thumbnail from the draft without an explicit user action.
+      this.elements.preview.src = DEFAULT_THUMBNAIL;
+      this.elements.label.textContent = "Trocar thumbnail";
       this.callbacks.onError("Não foi possível carregar a thumbnail.");
     });
   }

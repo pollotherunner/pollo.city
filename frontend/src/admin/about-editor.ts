@@ -24,6 +24,7 @@ export class AboutEditor {
   private syncing = false;
   private saving = false;
   private revision = 0;
+  private uploads = 0;
 
   constructor(private readonly callbacks: AboutEditorCallbacks) {}
 
@@ -69,6 +70,8 @@ export class AboutEditor {
     this.dirty = false;
     this.saving = false;
     this.revision = 0;
+    this.uploads = 0;
+    this.updateBusyControls();
     if (this.editor) {
       this.setSaveState(about.updatedAt ? `Atualizado em ${formatDateTime(about.updatedAt)}` : "");
     }
@@ -89,8 +92,26 @@ export class AboutEditor {
         }
       },
       onError: (message) => this.setSaveState(message, true),
+      onUploadStart: () => this.beginUpload(),
+      onUploadEnd: () => this.endUpload(),
     });
     return this.editor;
+  }
+
+  private beginUpload(): void {
+    this.uploads += 1;
+    this.updateBusyControls();
+  }
+
+  private endUpload(): void {
+    this.uploads = Math.max(0, this.uploads - 1);
+    this.updateBusyControls();
+  }
+
+  private updateBusyControls(): void {
+    const busy = this.saving || this.uploads > 0;
+    this.backButton.disabled = busy;
+    this.saveButton.disabled = busy;
   }
 
   private markdown(): string {
@@ -120,6 +141,10 @@ export class AboutEditor {
     if (this.saving) {
       return;
     }
+    if (this.uploads > 0) {
+      this.setSaveState("Aguarde o envio das mídias terminar.", true);
+      return;
+    }
     const title = this.titleField.value.trim();
     if (!title) {
       this.setSaveState("Escreva um título.", true);
@@ -129,7 +154,7 @@ export class AboutEditor {
 
     const revision = this.revision;
     this.saving = true;
-    this.saveButton.disabled = true;
+    this.updateBusyControls();
     this.setSaveState("Salvando…");
     try {
       const about = await api.updateAbout({
@@ -150,13 +175,13 @@ export class AboutEditor {
       this.setSaveState("Não foi possível salvar a página Sobre.", true);
     } finally {
       this.saving = false;
-      this.saveButton.disabled = false;
+      this.updateBusyControls();
     }
   }
 
   private async close(): Promise<void> {
-    if (this.saving) {
-      this.setSaveState("Aguarde o salvamento terminar.", true);
+    if (this.saving || this.uploads > 0) {
+      this.setSaveState("Aguarde o envio das mídias terminar.", true);
       return;
     }
     if (this.dirty && !window.confirm("Descartar as alterações da página Sobre?")) {

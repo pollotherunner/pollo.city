@@ -36,6 +36,9 @@ jobs:
       - name: Test frontend
         run: npm test
 
+      - name: Build frontend
+        run: npm run build
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -43,7 +46,7 @@ jobs:
           cache-dependency-path: backend/go.sum
 
       - name: Test backend
-        run: go test ./backend/...
+        run: go test -race ./backend/...
 
       - name: Vet backend
         run: go vet ./backend/...

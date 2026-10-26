@@ -268,6 +268,14 @@ func TestCreateDraftRejectsDuplicateDraftForPost(t *testing.T) {
 	if _, err := instance.CreateDraft(ctx, store.DraftInput{PostSlug: post.Slug, Title: "Outro", Body: "Dois"}); !errors.Is(err, store.ErrConflict) {
 		t.Fatalf("expected conflict, got %v", err)
 	}
+
+	detached, err := instance.CreateDraft(ctx, store.DraftInput{Title: "Solto", Body: "Três"})
+	if err != nil {
+		t.Fatalf("create detached draft: %v", err)
+	}
+	if _, err := instance.UpdateDraft(ctx, detached.ID, store.DraftInput{PostSlug: post.Slug, Title: "Solto", Body: "Três"}); !errors.Is(err, store.ErrConflict) {
+		t.Fatalf("expected update conflict, got %v", err)
+	}
 }
 
 func TestPostDeletionKeepsLinkedDraftAndCleansOrphanTags(t *testing.T) {

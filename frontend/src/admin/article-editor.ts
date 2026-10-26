@@ -412,7 +412,10 @@ export class ArticleEditor {
           await api.deleteDraft(draftId);
           this.draftId = null;
           this.draftUpdatedAt = null;
-        } catch {
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 401) {
+            throw error;
+          }
           // Keep the draft visible in the dashboard if cleanup fails.
         }
       }

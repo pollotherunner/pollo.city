@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,73 +25,112 @@ const (
 )
 
 func (s *Server) exportBackupArchive(w http.ResponseWriter, r *http.Request) {
-	unlockFiles := uploads.LockFilesRead()
-	defer unlockFiles()
-
-	backup, err := s.store.Export(r.Context())
+	temp, size, err := s.buildBackupArchive(r.Context())
 	if err != nil {
-		s.logError("export backup archive failed", err)
+		s.logError("build backup archive failed", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+	tempName := temp.Name()
+	defer func() {
+		temp.Close()
+		os.Remove(tempName)
+	}()
 
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="pollo-city-%s.zip"`, time.Now().Format("2006-01-02")))
 	w.Header().Set("Cache-Control", "no-store")
-
-	archive := zip.NewWriter(w)
-	defer archive.Close()
-
-	document, err := archive.CreateHeader(&zip.FileHeader{Name: "backup.json", Method: zip.Deflate})
-	if err != nil {
-		s.logError("create backup document in archive failed", err)
+	w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
+	w.WriteHeader(http.StatusOK)
+	if r.Method == http.MethodHead {
 		return
 	}
+	if _, err := io.Copy(w, temp); err != nil {
+		s.logError("stream backup archive failed", err)
+	}
+}
+
+func (s *Server) buildBackupArchive(ctx context.Context) (*os.File, int64, error) {
+	unlockFiles := uploads.LockFilesRead()
+	defer unlockFiles()
+
+	backup, err := s.store.Export(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("export backup: %w", err)
+	}
+
+	temp, err := os.CreateTemp("", "pollo-export-*.zip")
+	if err != nil {
+		return nil, 0, err
+	}
+	discard := true
+	defer func() {
+		if discard {
+			temp.Close()
+			os.Remove(temp.Name())
+		}
+	}()
+
+	archive := zip.NewWriter(temp)
+	document, err := archive.CreateHeader(&zip.FileHeader{Name: "backup.json", Method: zip.Deflate})
+	if err != nil {
+		return nil, 0, err
+	}
 	if err := json.NewEncoder(document).Encode(backup); err != nil {
-		s.logError("encode backup document in archive failed", err)
-		return
+		return nil, 0, err
 	}
 
 	entries, err := os.ReadDir(s.cfg.UploadsDir)
 	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			s.logError("read uploads for backup archive failed", err)
-		}
-		return
+		return nil, 0, fmt.Errorf("read uploads: %w", err)
 	}
-
 	for _, entry := range entries {
 		if entry.IsDir() || !uploads.IsStoredName(entry.Name()) {
 			continue
 		}
 		info, err := entry.Info()
-		if err != nil || !info.Mode().IsRegular() {
+		if err != nil {
+			return nil, 0, fmt.Errorf("inspect upload %s: %w", entry.Name(), err)
+		}
+		if !info.Mode().IsRegular() {
 			continue
 		}
 		header, err := zip.FileInfoHeader(info)
 		if err != nil {
-			s.logError("build upload header for backup archive failed", err)
-			continue
+			return nil, 0, fmt.Errorf("build upload header %s: %w", entry.Name(), err)
 		}
 		header.Name = "uploads/" + entry.Name()
 		header.Method = zip.Deflate
 		destination, err := archive.CreateHeader(header)
 		if err != nil {
-			s.logError("create upload entry in backup archive failed", err)
-			return
+			return nil, 0, fmt.Errorf("create upload entry %s: %w", entry.Name(), err)
 		}
 		source, err := os.Open(filepath.Join(s.cfg.UploadsDir, entry.Name()))
 		if err != nil {
-			s.logError("open upload for backup archive failed", err)
-			continue
+			return nil, 0, fmt.Errorf("open upload %s: %w", entry.Name(), err)
 		}
 		_, copyErr := io.Copy(destination, source)
-		source.Close()
+		closeErr := source.Close()
 		if copyErr != nil {
-			s.logError("copy upload to backup archive failed", copyErr)
-			return
+			return nil, 0, fmt.Errorf("copy upload %s: %w", entry.Name(), copyErr)
+		}
+		if closeErr != nil {
+			return nil, 0, fmt.Errorf("close upload %s: %w", entry.Name(), closeErr)
 		}
 	}
+
+	if err := archive.Close(); err != nil {
+		return nil, 0, fmt.Errorf("finish backup archive: %w", err)
+	}
+	info, err := temp.Stat()
+	if err != nil {
+		return nil, 0, err
+	}
+	if _, err := temp.Seek(0, io.SeekStart); err != nil {
+		return nil, 0, err
+	}
+	discard = false
+	return temp, info.Size(), nil
 }
 
 func (s *Server) importBackupArchive(w http.ResponseWriter, r *http.Request) {
@@ -231,12 +272,21 @@ func (s *Server) extractBackupUploads(entries []*zip.File) error {
 		if info, err := os.Lstat(target); err == nil && !info.Mode().IsRegular() {
 			return fmt.Errorf("upload entry %q targets an unsafe file", entry.Name)
 		}
+	}
 
+	staging, err := os.MkdirTemp(s.cfg.UploadsDir, ".restore-*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(staging)
+
+	for _, entry := range uploadEntries {
+		name := strings.TrimPrefix(entry.Name, "uploads/")
 		source, err := entry.Open()
 		if err != nil {
 			return err
 		}
-		destination, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+		destination, err := os.OpenFile(filepath.Join(staging, name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 		if err != nil {
 			source.Close()
 			return err
@@ -245,16 +295,21 @@ func (s *Server) extractBackupUploads(entries []*zip.File) error {
 		source.Close()
 		closeErr := destination.Close()
 		if copyErr != nil {
-			os.Remove(target)
 			return copyErr
 		}
 		if copied > maxBackupEntryBytes {
-			os.Remove(target)
 			return fmt.Errorf("upload entry %q is too large", entry.Name)
 		}
 		if closeErr != nil {
-			os.Remove(target)
 			return closeErr
+		}
+	}
+
+	for _, entry := range uploadEntries {
+		name := strings.TrimPrefix(entry.Name, "uploads/")
+		target := filepath.Join(s.cfg.UploadsDir, name)
+		if err := os.Rename(filepath.Join(staging, name), target); err != nil {
+			return err
 		}
 	}
 	return nil

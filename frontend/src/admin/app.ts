@@ -59,6 +59,7 @@ export class AdminApp {
   }
 
   private showLogin(): void {
+    this.openRequest += 1;
     this.feedback.hide();
     this.layout.showLogin();
     this.auth.clearPassword();
@@ -135,6 +136,7 @@ export class AdminApp {
         return;
       }
       this.handlingUnauthorized = true;
+      this.openRequest += 1;
       this.feedback.hide();
       this.layout.showLogin();
       this.auth.clearPassword();

@@ -160,6 +160,16 @@ func (s *Store) UpdateDraft(ctx context.Context, id string, input store.DraftInp
 	if err != nil {
 		return nil, err
 	}
+	if postSlug := strings.TrimSpace(input.PostSlug); postSlug != "" {
+		var existing int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(1) FROM drafts d
+			JOIN posts p ON p.id = d.post_id WHERE p.slug = ? AND d.id <> ?`, postSlug, id).Scan(&existing); err != nil {
+			return nil, fmt.Errorf("check duplicate draft: %w", err)
+		}
+		if existing > 0 {
+			return nil, store.ErrConflict
+		}
+	}
 	if _, err := tx.ExecContext(ctx, `UPDATE drafts
 		SET post_id = ?, title = ?, excerpt = ?, body_markdown = ?, thumbnail_url = ?, section = ?, audio_url = ?, updated_at = ?
 		WHERE id = ?`,
