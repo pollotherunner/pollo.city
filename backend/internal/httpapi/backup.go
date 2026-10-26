@@ -18,6 +18,9 @@ func (s *Server) exportBackup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) importBackup(w http.ResponseWriter, r *http.Request) {
+	unlockFiles := uploads.LockFilesRead()
+	defer unlockFiles()
+
 	var backup domain.Backup
 	if !decodeJSON(w, r, &backup, 256<<20) {
 		return
@@ -26,8 +29,6 @@ func (s *Server) importBackup(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "unsupported backup version")
 		return
 	}
-	unlockFiles := uploads.LockFilesRead()
-	defer unlockFiles()
 	if err := s.store.Import(r.Context(), &backup); err != nil {
 		s.writeStoreError(w, err)
 		return

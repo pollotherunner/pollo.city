@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"pollo.city/internal/domain"
+	"pollo.city/internal/store"
 	"pollo.city/internal/uploads"
 )
 
@@ -190,22 +191,7 @@ func (s *Server) importBackupArchive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.extractBackupUploads(archive.File); err != nil {
-		s.logError("extract backup uploads failed", err)
-		writeError(w, http.StatusBadRequest, "invalid backup uploads")
-		return
-	}
-	unlockFiles := uploads.LockFilesRead()
-	defer unlockFiles()
-	if missing, err := backupMissingUploads(s.cfg.UploadsDir, backup); err != nil {
-		s.logError("validate backup uploads failed", err)
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	} else if len(missing) > 0 {
-		writeError(w, http.StatusBadRequest, "backup references missing uploads: "+strings.Join(missing, ", "))
-		return
-	}
-	if err := s.store.Import(r.Context(), backup); err != nil {
+	if err := s.restoreBackupUploads(r.Context(), archive.File, backup); err != nil {
 		s.writeStoreError(w, err)
 		return
 	}
@@ -242,11 +228,12 @@ func decodeBackupEntry(entry *zip.File) (*domain.Backup, error) {
 	return &backup, nil
 }
 
-func (s *Server) extractBackupUploads(entries []*zip.File) error {
+func (s *Server) restoreBackupUploads(ctx context.Context, entries []*zip.File, backup *domain.Backup) error {
 	unlockFiles := uploads.LockFilesWrite()
 	defer unlockFiles()
 
 	uploadEntries := make([]*zip.File, 0)
+	names := make([]string, 0)
 	var expanded uint64
 	for _, entry := range entries {
 		if !strings.HasPrefix(entry.Name, "uploads/") {
@@ -254,23 +241,25 @@ func (s *Server) extractBackupUploads(entries []*zip.File) error {
 		}
 		name := strings.TrimPrefix(entry.Name, "uploads/")
 		if name == "" || strings.Contains(name, "/") || !uploads.IsStoredName(name) {
-			return fmt.Errorf("invalid upload entry %q", entry.Name)
+			return fmt.Errorf("%w: invalid upload entry %q", store.ErrInvalid, entry.Name)
 		}
 		if entry.UncompressedSize64 > maxBackupEntryBytes {
-			return fmt.Errorf("upload entry %q is too large", entry.Name)
+			return fmt.Errorf("%w: upload entry %q is too large", store.ErrInvalid, entry.Name)
 		}
 		expanded += entry.UncompressedSize64
 		if expanded > maxBackupExpandedBytes {
-			return fmt.Errorf("backup uploads are too large")
+			return fmt.Errorf("%w: backup uploads are too large", store.ErrInvalid)
 		}
 		uploadEntries = append(uploadEntries, entry)
+		names = append(names, name)
 	}
 
-	for _, entry := range uploadEntries {
-		name := strings.TrimPrefix(entry.Name, "uploads/")
+	for _, name := range names {
 		target := filepath.Join(s.cfg.UploadsDir, name)
 		if info, err := os.Lstat(target); err == nil && !info.Mode().IsRegular() {
-			return fmt.Errorf("upload entry %q targets an unsafe file", entry.Name)
+			return fmt.Errorf("%w: upload %q targets an unsafe file", store.ErrInvalid, name)
+		} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
 		}
 	}
 
@@ -298,19 +287,55 @@ func (s *Server) extractBackupUploads(entries []*zip.File) error {
 			return copyErr
 		}
 		if copied > maxBackupEntryBytes {
-			return fmt.Errorf("upload entry %q is too large", entry.Name)
+			return fmt.Errorf("%w: upload entry %q is too large", store.ErrInvalid, entry.Name)
 		}
 		if closeErr != nil {
 			return closeErr
 		}
 	}
 
-	for _, entry := range uploadEntries {
-		name := strings.TrimPrefix(entry.Name, "uploads/")
+	if missing, err := backupMissingUploads(staging, backup); err != nil {
+		return err
+	} else if len(missing) > 0 {
+		return fmt.Errorf("%w: backup references missing uploads: %s", store.ErrInvalid, strings.Join(missing, ", "))
+	}
+
+	backupDir, err := os.MkdirTemp(s.cfg.UploadsDir, ".restore-backup-*")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(backupDir)
+
+	movedAside := make([]string, 0)
+	installed := make([]string, 0)
+	rollback := func() {
+		for _, name := range installed {
+			os.Remove(filepath.Join(s.cfg.UploadsDir, name))
+		}
+		for _, name := range movedAside {
+			os.Rename(filepath.Join(backupDir, name), filepath.Join(s.cfg.UploadsDir, name))
+		}
+	}
+
+	for _, name := range names {
 		target := filepath.Join(s.cfg.UploadsDir, name)
+		if _, err := os.Lstat(target); err == nil {
+			if err := os.Rename(target, filepath.Join(backupDir, name)); err != nil {
+				rollback()
+				return err
+			}
+			movedAside = append(movedAside, name)
+		}
 		if err := os.Rename(filepath.Join(staging, name), target); err != nil {
+			rollback()
 			return err
 		}
+		installed = append(installed, name)
+	}
+
+	if err := s.store.Import(ctx, backup); err != nil {
+		rollback()
+		return err
 	}
 	return nil
 }
