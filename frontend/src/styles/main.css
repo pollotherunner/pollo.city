@@ -347,10 +347,45 @@ body.intro-active {
   text-decoration: none;
 }
 
+.nav-toggle {
+  display: none;
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+}
+
+.nav-toggle:hover {
+  background: var(--paper-muted);
+}
+
+.nav-toggle svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.7;
+}
+
 .nav-links {
   display: flex;
   align-items: center;
+  gap: clamp(14px, 2.4vw, 24px);
+}
+
+.nav-menu {
+  display: flex;
+  align-items: center;
   gap: clamp(18px, 3vw, 30px);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .nav-links a {
@@ -846,7 +881,7 @@ body.graph-mode .posts-section > .shell {
 body.graph-mode .posts-toolbar {
   position: fixed;
   top: calc(var(--graph-top) + 16px);
-  right: var(--gutter);
+  left: var(--gutter);
   z-index: 40;
   padding: 0;
 }
@@ -2524,7 +2559,7 @@ textarea.input {
   .header-inner {
     min-height: 58px;
     flex-wrap: wrap;
-    gap: 12px 18px;
+    gap: 0;
     padding: 13px 0;
   }
 
@@ -2532,12 +2567,39 @@ textarea.input {
     font-size: 24px;
   }
 
+  .nav-toggle {
+    display: grid;
+  }
+
   .nav-links {
-    gap: 15px;
+    display: none;
+    order: 3;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding-top: 4px;
+  }
+
+  .nav-links.is-open {
+    display: flex;
+  }
+
+  .nav-menu {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
   }
 
   .nav-links a {
-    font-size: 13px;
+    padding: 11px 0;
+    font-size: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .nav-actions {
+    gap: 2px;
+    padding-top: 10px;
   }
 
   .post-row {
@@ -2854,14 +2916,6 @@ textarea.input {
     font-size: 22px;
   }
 
-  .nav-links {
-    gap: 12px;
-  }
-
-  .nav-links a {
-    font-size: 12px;
-  }
-
   .post-row {
     grid-template-columns: 92px minmax(0, 1fr) 14px;
     gap: 10px;
@@ -2922,7 +2976,7 @@ textarea.input {
   }
 
   .nav-links {
-    gap: 10px;
+    gap: 0;
   }
 
   .search-toggle,

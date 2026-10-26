@@ -10,10 +10,7 @@ import (
 	"pollo.city/internal/store"
 )
 
-const (
-	defaultAboutTitle = "Sobre"
-	defaultAboutLede  = "pollo.city é o blog pessoal de Pollo."
-)
+const defaultAboutTitle = "Sobre"
 
 type execer interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
@@ -26,7 +23,7 @@ func (s *Store) GetAbout(ctx context.Context) (*domain.About, error) {
 	err := s.db.QueryRowContext(ctx, "SELECT title, lede, body_markdown, updated_at FROM about WHERE id = 1").
 		Scan(&about.Title, &about.Lede, &body, &updatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return &domain.About{Title: defaultAboutTitle, Lede: defaultAboutLede}, nil
+		return &domain.About{}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get about page: %w", err)

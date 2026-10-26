@@ -11,11 +11,12 @@ const description = document.querySelector<HTMLMetaElement>('meta[name="descript
 
 try {
   const about = await api.getAbout();
-  title.textContent = about.title || "Sobre";
+  title.textContent = about.title;
+  title.hidden = !about.title;
   lede.textContent = about.lede;
   lede.hidden = !about.lede;
-  document.title = `${title.textContent} — pollo.city`;
-  if (description && about.lede) {
+  document.title = about.title ? `${about.title} — pollo.city` : "pollo.city";
+  if (description) {
     description.content = about.lede;
   }
 
@@ -28,5 +29,11 @@ try {
     body.hidden = true;
   }
 } catch {
+  title.hidden = true;
+  lede.hidden = true;
   body.hidden = true;
+  document.title = "pollo.city";
+  if (description) {
+    description.content = "";
+  }
 }

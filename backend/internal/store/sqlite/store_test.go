@@ -30,7 +30,7 @@ func TestPostTagAndDraftLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get default about page: %v", err)
 	}
-	if about.Title != "Sobre" || about.Body != "" {
+	if about.Title != "" || about.Lede != "" || about.Body != "" {
 		t.Fatalf("unexpected default about page: %+v", about)
 	}
 	about, err = instance.UpdateAbout(ctx, store.AboutInput{
